@@ -256,6 +256,52 @@ export interface ProjectFixture {
 }
 
 // ---------------------------------------------------------------------------
+// Canonical domain vocabulary (Chunk 2 — SaaS implementation plan)
+
+/** Route roles replacing generic line types. Not yet migrated in UI. */
+export type RouteRole =
+  | "conduit"
+  | "feeder_foc"
+  | "distribution_foc"
+  | "pigtail"
+  | "drop_fiber";
+
+/** Curriculum project lifecycle states */
+export type ProjectLifecycleState =
+  | "draft"
+  | "review"
+  | "published"
+  | "archived";
+
+/** Assignment lifecycle states */
+export type AssignmentState =
+  | "scheduled"
+  | "open"
+  | "closed"
+  | "archived";
+
+/** Student workflow stages per project version */
+export type WorkflowStage =
+  | "orientation"
+  | "demand"
+  | "service_groups"
+  | "structures"
+  | "routes"
+  | "topology"
+  | "hld_review"
+  | "lld"
+  | "complete";
+
+/** Mastery evidence states for learning objectives */
+export type MasteryState =
+  | "not_started"
+  | "introduced"
+  | "practicing"
+  | "demonstrated"
+  | "mastered"
+  | "needs_review";
+
+// ---------------------------------------------------------------------------
 // Grading types (plan §3 — check registry shared by grader and AI tutor)
 
 export type CheckStatus = "pass" | "warn" | "fail";
