@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
 import { validateStyle, ruleSchema, styleSchema } from "./style-schema";
 
 let idCounter = 0;

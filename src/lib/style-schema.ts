@@ -82,6 +82,7 @@ export const DEFAULT_PREMISE_STYLE: SafeStyle = {
 };
 
 function routeStyle(id: string, name: string, rules: { id: string; label: string; symbolizer: { color: string; opacity: number; width?: number; dashArray?: number[] } }[]): SafeStyle {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { id, name, geometryType: "line", labels: [], rules: rules as any };
 }
 

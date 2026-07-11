@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
   try {
     const conditions = [eq(schema.networkElements.orgId, auth.org_id)];
     if (layerType !== "all") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       conditions.push(eq(schema.networkElements.elementType, layerType as any));
     }
 
@@ -47,9 +48,11 @@ export async function GET(request: NextRequest) {
       .limit(pageSize)
       .offset(page * pageSize);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let features = rows as any[];
     if (filterText.trim()) {
       const q = filterText.toLowerCase();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       features = features.filter((f: any) =>
         (f.label ?? "").toLowerCase().includes(q) ||
         (f.id ?? "").toLowerCase().includes(q)
