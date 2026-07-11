@@ -1,20 +1,15 @@
-import { NextResponse } from "next/server";
-import { PROJECTS } from "@/lib/projects";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthFromRequest } from "@/lib/auth";
+import { projectRepository } from "@/lib/repository";
 
-const PUBLIC_PROJECT_FIELDS = [
-  "id", "title", "difficulty", "environment", "splitArchitecture",
-  "mapCenter", "mapZoom", "preloadedElements", "requirements",
-  "constraints", "constraintNotes", "deliverables", "scenario",
-  "tasks", "tip", "optimalStats", "passThreshold",
-] as const;
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await getAuthFromRequest(request);
+    const orgId = auth?.org_id ?? "dev";
 
-export async function GET() {
-  const projects = Object.values(PROJECTS).map((p) => {
-    const sanitized: Record<string, unknown> = {};
-    for (const key of PUBLIC_PROJECT_FIELDS) {
-      sanitized[key] = (p as unknown as Record<string, unknown>)[key];
-    }
-    return sanitized;
-  });
-  return NextResponse.json({ projects });
+    const projects = await projectRepository.listForOrg(orgId);
+    return NextResponse.json({ projects });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
 }
