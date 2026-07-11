@@ -112,7 +112,48 @@ export const cohortMembers = pgTable("cohort_members", {
 ]);
 
 // ===========================================================================
-// Projects
+// Curriculum Projects — versioned content model
+// ===========================================================================
+
+export const curriculumProjects = pgTable("curriculum_projects", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  difficulty: text("difficulty", { enum: ["beginner", "intermediate", "advanced"] }).notNull(),
+  environment: text("environment", { enum: ["aerial", "underground", "mixed"] }).notNull(),
+  splitArchitecture: text("split_architecture", { enum: ["centralized", "distributed", "student_choice", "n/a"] }).notNull().default("n/a"),
+  state: text("state", { enum: ["draft", "review", "published", "archived"] }).notNull().default("draft"),
+  currentVersionId: uuid("current_version_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex("curriculum_projects_org_slug").on(table.orgId, table.slug),
+]);
+
+export const curriculumProjectVersions = pgTable("curriculum_project_versions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  projectId: uuid("project_id").notNull().references(() => curriculumProjects.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull(),
+  scenario: jsonb("scenario").notNull(),
+  constraints: jsonb("constraints").notNull().default({}),
+  gradingWeights: jsonb("grading_weights").notNull().default({}),
+  preloadedElements: jsonb("preloaded_elements").notNull().default([]),
+  optimalStats: jsonb("optimal_stats"),
+  requirements: jsonb("requirements").notNull().default([]),
+  mapCenter: text("map_center").notNull(),
+  mapZoom: integer("map_zoom").notNull().default(15),
+  passThreshold: integer("pass_threshold").notNull().default(80),
+  changelog: text("changelog"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex("curriculum_versions_project_number").on(table.projectId, table.versionNumber),
+]);
+
+// ===========================================================================
+// Projects (legacy table — will be deprecated by curriculum_projects)
 // ===========================================================================
 
 export const projects = pgTable("projects", {
