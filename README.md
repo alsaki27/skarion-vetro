@@ -160,22 +160,23 @@ Prototype pipeline for converting real survey DWG files into GeoJSON basemap lay
 ### Scripts
 
 ```bash
-npm run dev          # Start Next.js dev server (port 3000)
-npm run build        # Production build
-npm run lint         # ESLint
-npm run db:generate  # Generate Drizzle migrations
-npm run db:push      # Push schema to database
-npm run db:migrate   # Apply migrations
-npm run db:seed      # Seed database (requires DATABASE_URL)
+npm run dev                 # Start Next.js dev server (port 3000)
+npm run build               # Production build
+npm run lint                # ESLint
+npm run typecheck           # TypeScript type checking (tsc --noEmit)
+npm test                    # Run all Vitest unit tests
+npm run test:unit           # Unit tests only
+npm run test:integration    # Integration tests only
+npm run test:e2e            # Playwright end-to-end tests
+npm run test:coverage       # Tests with coverage report
+npm run verify              # Lint + typecheck + test + build
+npm run db:generate         # Generate Drizzle migrations
+npm run db:push             # Push schema to database
+npm run db:migrate          # Apply migrations
+npm run db:seed             # Seed database (requires DATABASE_URL)
 ```
 
-### Verification scripts
-
-```bash
-npx tsx scripts/verify-grading.ts                # Run all grading checks
-npx tsx scripts/verify-containment.ts             # Containment constraint tests
-npx tsx scripts/verify-chunk12-containment.ts     # Expanded containment checks
-```
+All commits must pass `npm run verify` before push.
 
 ### Worker (sidecar)
 
