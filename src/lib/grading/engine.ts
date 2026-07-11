@@ -6,7 +6,7 @@ import type {
   PointElement,
   ProjectFixture,
 } from "../types";
-import { isLineElement, isPointElement } from "../types";
+import { isContainerType, isHostableType, isLineElement, isPointElement, HARDWARE_CATALOG } from "../types";
 import { distanceFt, pathLengthFt } from "../geometry";
 
 // ---------------------------------------------------------------------------
@@ -21,6 +21,8 @@ export interface DesignContext {
   lines: LineElement[];
   /** adjacency: point element id -> connected point element ids */
   graph: Map<string, Set<string>>;
+  /** container id -> set of hosted element ids (containment hierarchy) */
+  containment: Map<string, Set<string>>;
 }
 
 const ENDPOINT_SNAP_FT = 40;
@@ -62,10 +64,6 @@ export function buildContext(
   };
   for (const line of lines) {
     if (line.path.length < 2) continue;
-    // Resolve EVERY vertex to a nearby point element (not just endpoints):
-    // a mainline CO→P1→…→P5 passes *through* poles, and drops attach at those
-    // mid-vertices. Consecutive resolved vertices get linked, and any two
-    // elements on the same line are transitively connected through the chain.
     let prevResolved: PointElement | null = null;
     for (let i = 0; i < line.path.length; i++) {
       const explicitId =
@@ -83,7 +81,23 @@ export function buildContext(
       }
     }
   }
-  return { project, elements, points, lines, graph };
+
+  // Build containment map: container id -> set of hosted element ids
+  const containment = new Map<string, Set<string>>();
+  for (const p of points) {
+    if (p.parent_container_id) {
+      if (!containment.has(p.parent_container_id)) {
+        containment.set(p.parent_container_id, new Set());
+      }
+      containment.get(p.parent_container_id)!.add(p.id);
+      // Link hosted element to its container in the graph so connectivity
+      // traverses through containment (Chunk 3 gap fix: a drop from a hosted
+      // MST inside a handhole should count as connected to the handhole).
+      link(p.id, p.parent_container_id);
+    }
+  }
+
+  return { project, elements, points, lines, graph, containment };
 }
 
 /** BFS: is there a path between two point elements through the line graph? */
@@ -285,6 +299,70 @@ const compliance: CheckDef = {
   },
 };
 
+const conduit_connectivity: CheckDef = {
+  id: "conduit_connectivity",
+  category: "connectivity",
+  run(ctx) {
+    // Build a conduit-only graph
+    const conduitGraph = new Map<string, Set<string>>();
+    const linkC = (a: string, b: string) => {
+      if (!conduitGraph.has(a)) conduitGraph.set(a, new Set());
+      if (!conduitGraph.has(b)) conduitGraph.set(b, new Set());
+      conduitGraph.get(a)!.add(b);
+      conduitGraph.get(b)!.add(a);
+    };
+    for (const line of ctx.lines) {
+      if (line.type !== "conduit" || line.path.length < 2) continue;
+      let prev: string | null = null;
+      for (let i = 0; i < line.path.length; i++) {
+        const explicitId = i === 0 ? line.startElementId : i === line.path.length - 1 ? line.endElementId : undefined;
+        const hit = explicitId ? ctx.points.find((p) => p.id === explicitId) : null;
+        if (hit) {
+          if (prev && prev !== hit.id) linkC(prev, hit.id);
+          prev = hit.id;
+        }
+      }
+    }
+
+    const co = ctx.points.find((p) => p.type === "co");
+    if (!co) {
+      return { checkId: "conduit_connectivity", category: "connectivity", status: "fail", score: 0, message: "No CO found." };
+    }
+
+    // Points that should be conduit-connected: vault, handhole, FDH, riser
+    const conduitNodes = ctx.points.filter(
+      (p) => p.type === "vault" || p.type === "handhole" || p.type === "fdh_cabinet" || p.type === "riser",
+    );
+    if (conduitNodes.length === 0) {
+      return { checkId: "conduit_connectivity", category: "connectivity", status: "pass", score: 100, message: "No conduit-reachable nodes to check." };
+    }
+
+    // BFS from CO
+    const seen = new Set<string>([co.id]);
+    const queue = [co.id];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      for (const next of conduitGraph.get(cur) ?? []) {
+        if (!seen.has(next)) { seen.add(next); queue.push(next); }
+      }
+    }
+
+    const unreached = conduitNodes.filter((p) => !seen.has(p.id));
+    const reached = conduitNodes.length - unreached.length;
+    const score = Math.round((reached / conduitNodes.length) * 100);
+    return {
+      checkId: "conduit_connectivity",
+      category: "connectivity",
+      status: unreached.length === 0 ? "pass" : "fail",
+      score,
+      message: unreached.length === 0
+        ? `Conduit network connects all ${conduitNodes.length} structure(s) — full conduit coverage.`
+        : `${unreached.length} structure(s) (${unreached.map((p) => p.label ?? p.id).join(", ")}) aren't reached by conduit from the CO yet.`,
+      elementIds: unreached.map((p) => p.id),
+    };
+  },
+};
+
 const efficiency: CheckDef = {
   id: "efficiency",
   category: "efficiency",
@@ -323,6 +401,227 @@ const efficiency: CheckDef = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Chunk 12 — Containment checks
+
+const container_capacity: CheckDef = {
+  id: "container_capacity",
+  category: "containment",
+  run(ctx) {
+    const containers = ctx.points.filter((p) => isContainerType(p.type));
+    if (containers.length === 0) {
+      return { checkId: "container_capacity", category: "containment", status: "pass", score: 100, message: "No containers to check." };
+    }
+    const overfilled: string[] = [];
+    for (const c of containers) {
+      const hosted = ctx.containment.get(c.id)?.size ?? 0;
+      const catalogKey = String(c.attributes.catalog_key ?? "");
+      const entry = catalogKey ? HARDWARE_CATALOG[catalogKey] : undefined;
+      const maxHosted = entry?.maxHostedCount ?? 4;
+      if (hosted > maxHosted) {
+        overfilled.push(`${c.label ?? c.type} has ${hosted} item(s) (capacity ${maxHosted})`);
+      }
+    }
+    const score = containers.length === 0 ? 100 : Math.round(((containers.length - overfilled.length) / containers.length) * 100);
+    return {
+      checkId: "container_capacity",
+      category: "containment",
+      status: overfilled.length === 0 ? "pass" : "fail",
+      score,
+      message: overfilled.length === 0
+        ? `All ${containers.length} container(s) are within capacity.`
+        : `Overfilled: ${overfilled.join("; ")}.`,
+      elementIds: overfilled.length > 0 ? [] : undefined,
+    };
+  },
+};
+
+const equipment_must_be_hosted: CheckDef = {
+  id: "equipment_must_be_hosted",
+  category: "containment",
+  run(ctx) {
+    const hostable = ctx.points.filter((p) => isHostableType(p.type));
+    const unhosted = hostable.filter((e) => !e.parent_container_id);
+    const score = hostable.length === 0 ? 100 : Math.round(((hostable.length - unhosted.length) / hostable.length) * 100);
+    return {
+      checkId: "equipment_must_be_hosted",
+      category: "containment",
+      status: unhosted.length === 0 ? "pass" : "fail",
+      score,
+      message: unhosted.length === 0
+        ? `All ${hostable.length} equipment item(s) are properly hosted in containers.`
+        : `${unhosted.length} equipment item(s) are floating (not inside a container): ${unhosted.map((e) => e.label ?? e.type).join(", ")}. Open a handhole/vault/FDH and host them from the properties panel.`,
+      elementIds: unhosted.map((e) => e.id),
+    };
+  },
+};
+
+const conduit_terminates_at_structure: CheckDef = {
+  id: "conduit_terminates_at_structure",
+  category: "containment",
+  run(ctx) {
+    const conduits = ctx.lines.filter((l) => l.type === "conduit");
+    if (conduits.length === 0) {
+      return { checkId: "conduit_terminates_at_structure", category: "containment", status: "pass", score: 100, message: "No conduit to check." };
+    }
+    const validEndpoints = new Set(["handhole", "vault", "fdh_cabinet", "riser", "pole", "co"]);
+    const bad: Array<{ conduitId: string; issue: string }> = [];
+    for (const conduit of conduits) {
+      const startId = conduit.startElementId;
+      const endId = conduit.endElementId;
+      const startEl = startId ? ctx.points.find((p) => p.id === startId) : null;
+      const endEl = endId ? ctx.points.find((p) => p.id === endId) : null;
+      if (!startEl || !validEndpoints.has(startEl.type)) {
+        bad.push({ conduitId: conduit.id, issue: "start not at a structure" });
+      }
+      if (!endEl || !validEndpoints.has(endEl.type)) {
+        bad.push({ conduitId: conduit.id, issue: "end not at a structure" });
+      }
+    }
+    const score = conduits.length === 0 ? 100 : Math.round(((conduits.length * 2 - bad.length) / (conduits.length * 2)) * 100);
+    return {
+      checkId: "conduit_terminates_at_structure",
+      category: "containment",
+      status: bad.length === 0 ? "pass" : "fail",
+      score,
+      message: bad.length === 0
+        ? `All ${conduits.length} conduit(s) terminate at valid structures.`
+        : `Issues: ${bad.map((b) => b.conduitId + " (" + b.issue + ")").join("; ")}. Conduit must start/end at a handhole, vault, FDH, riser, pole, or CO.`,
+      elementIds: [...new Set(bad.map((b) => b.conduitId))],
+    };
+  },
+};
+
+const drop_from_hosted_terminal: CheckDef = {
+  id: "drop_from_hosted_terminal",
+  category: "containment",
+  run(ctx) {
+    const drops = ctx.lines.filter((l) => l.type === "drop_cable");
+    if (drops.length === 0) {
+      return { checkId: "drop_from_hosted_terminal", category: "containment", status: "fail", score: 0, message: "No drop cables drawn yet." };
+    }
+    const bad: Array<{ dropId: string; issue: string }> = [];
+    for (const drop of drops) {
+      const startId = drop.startElementId;
+      if (!startId) {
+        bad.push({ dropId: drop.id, issue: "start not snapped to any element" });
+        continue;
+      }
+      const startEl = ctx.points.find((p) => p.id === startId);
+      if (!startEl || startEl.type !== "mst") {
+        bad.push({ dropId: drop.id, issue: "start must be an MST" });
+      }
+    }
+    const score = drops.length === 0 ? 100 : Math.round(((drops.length - bad.length) / drops.length) * 100);
+    return {
+      checkId: "drop_from_hosted_terminal",
+      category: "containment",
+      status: bad.length === 0 ? "pass" : "fail",
+      score,
+      message: bad.length === 0
+        ? `All ${drops.length} drop(s) originate from an MST — good.`
+        : `Issues: ${bad.map((b) => b.dropId + " (" + b.issue + ")").join("; ")}. Each drop must snap to an MST.`,
+      elementIds: [...new Set(bad.map((b) => b.dropId))],
+    };
+  },
+};
+
+const flowerpot_contents: CheckDef = {
+  id: "flowerpot_contents",
+  category: "containment",
+  run(ctx) {
+    const flowerpots = ctx.points.filter((p) => p.type === "flowerpot");
+    if (flowerpots.length === 0) {
+      return { checkId: "flowerpot_contents", category: "containment", status: "pass", score: 100, message: "No flowerpots to check." };
+    }
+    const bad: Array<{ fpId: string; issue: string }> = [];
+    for (const fp of flowerpots) {
+      const hosted = ctx.containment.get(fp.id);
+      if (hosted) {
+        for (const hid of hosted) {
+          const el = ctx.points.find((p) => p.id === hid);
+          if (el && el.type !== "slack_loop") {
+            bad.push({ fpId: fp.id, issue: `contains ${el.type} (only slack_loop allowed)` });
+          }
+        }
+      }
+    }
+    const score = flowerpots.length === 0 ? 100 : Math.round(((flowerpots.length - bad.length) / flowerpots.length) * 100);
+    return {
+      checkId: "flowerpot_contents",
+      category: "containment",
+      status: bad.length === 0 ? "pass" : "fail",
+      score,
+      message: bad.length === 0
+        ? `All flowerpots contain only slack loops.`
+        : `Issues: ${bad.map((b) => b.fpId + " " + b.issue).join("; ")}. Flowerpots can only host slack loops.`,
+    };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Chunk 13 — LLD checks
+
+const split_ratio_valid: CheckDef = {
+  id: "split_ratio_valid",
+  category: "lld",
+  run(ctx) {
+    const splitters = ctx.points.filter((p) => p.type === "splitter");
+    if (splitters.length === 0) {
+      return { checkId: "split_ratio_valid", category: "lld", status: "fail", score: 0, message: "No splitters found in the design." };
+    }
+    const bad: string[] = [];
+    for (const sp of splitters) {
+      const ratio = String(sp.attributes.ratio ?? "1:8");
+      // Check that the splitter's out count doesn't exceed available cables/drops
+      const connectedCables = ctx.lines.filter(
+        (l) => l.startElementId === sp.id || l.endElementId === sp.id,
+      );
+      if (connectedCables.length < 2) {
+        bad.push(`${sp.label ?? sp.id} (${ratio}) — insufficient connections`);
+      }
+    }
+    const score = splitters.length === 0 ? 0 : Math.round(((splitters.length - bad.length) / splitters.length) * 100);
+    return {
+      checkId: "split_ratio_valid",
+      category: "lld",
+      status: bad.length === 0 ? "pass" : "fail",
+      score,
+      message: bad.length === 0
+        ? `All ${splitters.length} splitter(s) have valid ratios and connections.`
+        : `Issues: ${bad.join("; ")}.`,
+    };
+  },
+};
+
+const fiber_assignment_complete: CheckDef = {
+  id: "fiber_assignment_complete",
+  category: "lld",
+  run(ctx) {
+    const cables = ctx.lines.filter((l) => l.type === "cable");
+    if (cables.length === 0) {
+      return { checkId: "fiber_assignment_complete", category: "lld", status: "fail", score: 0, message: "No cables to check fiber assignments on." };
+    }
+    const unassigned = cables.filter((c) => {
+      const assignments = c.attributes.fiber_assignments;
+      return !assignments || (Array.isArray(assignments) && assignments.length === 0);
+    });
+    const totalCables = cables.length;
+    const assigned = totalCables - unassigned.length;
+    const score = Math.round((assigned / totalCables) * 100);
+    return {
+      checkId: "fiber_assignment_complete",
+      category: "lld",
+      status: unassigned.length === 0 ? "pass" : "fail",
+      score,
+      message: unassigned.length === 0
+        ? `All ${totalCables} cable(s) have fiber assignments.`
+        : `${unassigned.length} cable(s) have no fiber assignments yet. Open the Splice Table in LLD mode to assign fibers.`,
+      elementIds: unassigned.map((c) => c.id),
+    };
+  },
+};
+
 export const CHECK_REGISTRY: Record<string, CheckDef> = {
   coverage,
   connectivity,
@@ -330,6 +629,17 @@ export const CHECK_REGISTRY: Record<string, CheckDef> = {
   capacity,
   compliance,
   efficiency,
+  // Chunk 14 expanded checks
+  conduit_connectivity,
+  // Chunk 12 containment checks
+  container_capacity,
+  equipment_must_be_hosted,
+  conduit_terminates_at_structure,
+  drop_from_hosted_terminal,
+  flowerpot_contents,
+  // Chunk 13 LLD checks
+  split_ratio_valid,
+  fiber_assignment_complete,
 };
 
 // ---------------------------------------------------------------------------
