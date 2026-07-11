@@ -1,15 +1,16 @@
 import type { NetworkElement, ProjectFixture } from "../types";
+import { p10Premises } from "./p10-premises-generated";
 
-const LNG = -97.7704;
-const LAT0 = 30.6002;
+const CENTER_LNG = -97.7653;
+const CENTER_LAT = 30.6048;
 
-const preloadedElements: NetworkElement[] = [
+const infrastructure: NetworkElement[] = [
   {
     id: "p10_co",
     type: "co",
     locked: true,
     label: "Parkside CO",
-    position: [LNG - 0.0028, LAT0 + 0.0016],
+    position: [CENTER_LNG - 0.005, CENTER_LAT + 0.0015],
     attributes: { name: "Parkside Georgetown CO" },
   },
   {
@@ -17,21 +18,52 @@ const preloadedElements: NetworkElement[] = [
     type: "vault",
     locked: true,
     label: "Core Vault",
-    position: [LNG - 0.0007, LAT0],
+    position: [CENTER_LNG - 0.003, CENTER_LAT + 0.0005],
     attributes: { catalog_key: "vault_4x4", size: "4x4", depth_in: 48 },
   },
+  {
+    id: "p10_mst_north",
+    type: "mst",
+    locked: true,
+    label: "MST North (8-port)",
+    position: [CENTER_LNG - 0.001, CENTER_LAT + 0.001],
+    attributes: { catalog_key: "mst_8port", port_count: 8 },
+  },
+  {
+    id: "p10_mst_central",
+    type: "mst",
+    locked: true,
+    label: "MST Central (6-port)",
+    position: [CENTER_LNG - 0.002, CENTER_LAT - 0.0005],
+    attributes: { catalog_key: "mst_6port", port_count: 6 },
+  },
+  {
+    id: "p10_mst_south",
+    type: "mst",
+    locked: true,
+    label: "MST South (4-port)",
+    position: [CENTER_LNG - 0.003, CENTER_LAT - 0.0015],
+    attributes: { catalog_key: "mst_4port", port_count: 4 },
+  },
 ];
+
+const serviceableParcelIds = p10Premises
+  .filter((p) => p.attributes.serviceable === true && typeof p.attributes.parcel_external_id === "string")
+  .map((p) => String(p.attributes.parcel_external_id));
+
+const preloadedElements: NetworkElement[] = [...infrastructure, ...p10Premises];
 
 export const p10ParksideGeorgetown: ProjectFixture = {
   id: "p10-parkside-georgetown",
   title: "Project 10: Parkside Georgetown",
   difficulty: "advanced",
-  environment: "mixed",
+  environment: "underground",
   splitArchitecture: "student_choice",
   scenario:
     "Parkside Georgetown is a real Williamson County neighborhood pocket built from the L131725C " +
     "parcel and address basemap. The training area includes 51 serviceable single-family premises " +
-    "surrounded by parcel geometry, so every route choice is tied to a live, deterministic basemap.",
+    "at their true E911 coordinates, surrounded by parcel geometry, so every route choice is tied " +
+    "to a live, deterministic basemap.",
   tasks: [
     "Inspect the parcel and address basemap before laying out the network",
     "Route the feeder from the CO through the neighborhood core",
@@ -40,24 +72,26 @@ export const p10ParksideGeorgetown: ProjectFixture = {
   ],
   constraints: {
     maxPoleSpanFt: 300,
-    maxDropCableFt: 180,
+    maxDropCableFt: 300,
     minCableCount: 24,
   },
   constraintNotes: [
-    "51 serviceable single-family premises are available in the basemap pocket",
+    "51 serviceable single-family premises are preloaded from the E911 basemap pocket",
+    "40 additional non-serviceable addresses (CLOSED / OPEN SPACE / UTILITIES) provide context",
     "The county basemap is read-only and drives the project geography",
-    "Use the vault as the network anchor when you start building the design",
+    "Use the vault and MSTs as the network anchor when you start building the design",
     "All spans and drops must stay within the project limits",
   ],
   deliverables: [
     "A connected feeder route from the CO",
     "A design that reaches all 51 serviceable premises",
     "A compliant cable count and span plan",
+    "No trespass on non-served parcels",
   ],
   tip:
     "Use the workspace table to inspect parcels and addresses, then click the map to verify " +
     "the selected premise or parcel before you start drawing.",
-  mapCenter: [LNG, LAT0],
+  mapCenter: [CENTER_LNG, CENTER_LAT],
   mapZoom: 16,
   preloadedElements,
   requirements: [
@@ -65,14 +99,17 @@ export const p10ParksideGeorgetown: ProjectFixture = {
     { id: "req_capacity", label: "Main feeder cable is at least 24-count", checkId: "capacity" },
     { id: "req_compliance", label: "All spans and drops stay within limits", checkId: "compliance" },
     { id: "req_efficiency", label: "Keep the route efficient", checkId: "efficiency" },
+    { id: "req_trespass", label: "No trespass on non-served parcels", checkId: "trespass" },
   ],
   optimalStats: { totalCableFt: 11000 },
   passThreshold: 85,
   gradingWeights: {
-    connectivity: 0.35,
-    capacity: 0.2,
-    compliance: 0.2,
-    efficiency: 0.25,
+    connectivity: 0.30,
+    capacity: 0.15,
+    compliance: 0.15,
+    efficiency: 0.20,
+    trespass: 0.20,
   },
   basemapId: "wilco-l131725c",
+  serviceableParcelIds,
 };

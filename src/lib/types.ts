@@ -154,11 +154,23 @@ export const HARDWARE_CATALOG: Record<string, HardwareCatalogEntry> = {
     canHost: ["mst", "splice_closure"],
     defaultAttributes: { owner: "Utility", height_ft: 35, attachment_count: 0 },
   },
+  mst_4port: {
+    type: "mst",
+    label: "MST 4-port",
+    volumeClass: 0.4,
+    defaultAttributes: { port_count: 4 },
+  },
   mst_6port: {
     type: "mst",
     label: "MST 6-port",
     volumeClass: 0.5,
     defaultAttributes: { port_count: 6 },
+  },
+  mst_8port: {
+    type: "mst",
+    label: "MST 8-port",
+    volumeClass: 0.6,
+    defaultAttributes: { port_count: 8 },
   },
   mst_12port: {
     type: "mst",
@@ -257,6 +269,8 @@ export interface ProjectFixture {
   basemapId?: string;
   /** Owning organization for tenant scoping */
   orgId?: string;
+  /** Parcel IDs considered "in service" for trespass and coverage checks (Parkside Georgetown) */
+  serviceableParcelIds?: string[];
 }
 
 export type BasemapLayerKind = "parcels" | "addresses";

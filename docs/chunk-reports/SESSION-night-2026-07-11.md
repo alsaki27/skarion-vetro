@@ -4,54 +4,91 @@
 
 - Branch: `feat/50-chunk-recovery`
 - Worktree: `C:/Users/sakis/Documents/Claude/skarion-vetro/.kilo/worktrees/scarce-park`
-- Current tip inspected: `76817da` (`Merge remote-tracking branch 'origin/feat/parcel-basemap-intake' into feat/50-chunk-recovery`)
+- Current tip: `fe7b720` (`fix: complete Parkside seeding, trespass check, LLD coverage, status accuracy, closeout`)
 
-## Task 1
+## Task 1 — Purge inherited empty commits
 
-- Verification on this worktree: the recovery branch already contains no inherited empty commits in full-history checks against `master`.
-- No rebase was required in this worktree.
-- Empty-commit count check: `0`
+- **SHA:** verified (no rebase needed)
+- Empty-commit count against `master`: `0`
+- No action required; inherited empty commits were already absent in this worktree.
 
-## Task 2
+## Task 2 — Chunk 2 security hardening
 
-- Security hardening is already present in branch history at `240eb7b` (`fix: complete chunk 2 worker and secret hardening`).
-- Relevant worker and auth paths now fail closed on missing/weak production secrets and use DB-backed invite/session flow.
+- **SHA:** `240eb7b` (`fix: complete chunk 2 worker and secret hardening`)
+- Already present in branch history.
+- Worker and auth paths fail closed on missing/weak production secrets; DB-backed invite/session flow.
 
-## Task 3a
+## Task 3a — Parcel/address basemap layer loaders
 
-- Completed in commit `675a9e8` (`feat: add parcel and address basemap layer loaders`).
-- Added county parcel/address basemap loaders with strict Zod validation and reject logging.
-- Added tenant-scoped parcel/address layer routes for the `wilco-l131725c` fixture.
-- Updated the layer tree labels for `Parcels & Property` and `Addresses & Buildings`.
-- Added route and loader coverage for happy-path counts and malformed-feature rejection.
+- **SHA:** `675a9e8` (`feat: add parcel and address basemap layer loaders`)
+- Already committed by prior session.
+- County parcel/address loaders with Zod validation, tenant-scoped routes, layer tree labels.
 
-## Task 3b
+## Task 3b — Inspector + attribute table wiring
 
-- Wired the workspace inspector to real parcel and address basemap features.
-- Added dual-mode selection support so parcels/addresses and design elements can be inspected separately.
-- Added bidirectional parcel/address relationship lookup and linked-record navigation.
-- Extended the bottom attribute table to virtualize design rows and basemap rows together, with CSV export and selection sync.
+- **SHA:** `ee14313` (`feat: finish basemap inspector and lld coverage`)
+- Already committed by Codex.
+- Parcel/address click → Attributes/Source/Relationships tabs, bidirectional lookup, label zoom rules.
 
-## Task 3c
+## Task 3c — Parkside Georgetown project seeding (fixed in this session)
 
-- Added the Parkside Georgetown project fixture with a real Williamson County basemap reference.
-- Exposed the new project in the curriculum view.
-- Locked the selected 51-premise park pocket in a test so the basemap seed stays stable.
+- **SHA:** `fe7b720`
+- **Diff stat:** `src/lib/projects/p10-parkside-georgetown.ts` +67/-11, `src/lib/projects/p10-premises-generated.ts` +1736 (new)
+- Fixed gaps from Codex commit:
+  - Premises now seeded as `preloadedElements` from real E911 basemap coordinates (51 serviceable + 40 non-serviceable context)
+  - Each premise carries `address_external_id` and `parcel_external_id`
+  - Project center corrected to `[-97.7653, 30.6048]`, environment set to `underground`
+  - Added 4/6/8-port MSTs as preloaded infrastructure
+  - Added `serviceableParcelIds` to `ProjectFixture` type and populated it from the 51 premises
+  - Added deterministic snapshot test verifying premise counts and parcel linkage
+  - Added required trespass test: drop crossing a non-served parcel fires the check naming that parcel's `parcel_external_id`
 
-## Task 4
+## Task 4 — LLD engine test coverage (fixed in this session)
 
-- Added dedicated LLD engine tests covering fiber allocation, splice tracing, numbering, label generation, BOM generation, and splice-diagram balance checks.
+- **SHA:** `fe7b720`
+- **Diff stat:** `src/lib/lld-engines.test.ts` +195/-0
+- Added missing assertions to close gaps from Codex's shallow coverage:
+  - **fiber-engine:** spare-gap accounting (allocate mst + spare + express, verify non-overlapping)
+  - **splice-model:** duplicate fiber detection (overlapping in-ranges on same cable), matrix reconciliation to original allocations
+  - **numbering-engine:** determinism (same topology → same numbers twice), longest-leg selection, tie-break fixture
+  - **label-engine:** template disagreement detection (`?{key}` placeholder on missing attr), callout capacity sanity
+  - **splice-diagram:** comprehensive balance (entry [1,24] = spliced [1,12] + passed [13,20] + spare [21,24]), missing-fiber failure
+  - **bom-engine:** uncataloged-asset rejection (fake key skipped from report lines)
 
-## Task 5
+## Task 5 — STATUS.md accuracy pass (fixed in this session)
 
-- Updated `docs/chunk-reports/STATUS.md` to mark the virtualized attribute table chunk as partial instead of absent.
-- Updated the LLD coverage note so it reflects the new dedicated test suite.
+- **SHA:** `fe7b720`
+- **Diff stat:** `docs/chunk-reports/STATUS.md` +113/-38
+- Downgraded chunk 46 (vector tiles/performance) from `implemented` → `partial` (`performance-budgets.ts` constants ≠ vector tile server)
+- Downgraded chunks 42-43 (hints, analytics) from `implemented` → `partial` (libraries exist but no API/UI wiring)
+- Added `wired into app?` column to the status matrix
+- Updated summary counts: Implemented 17, Partial 25, Absent 3
 
-## Verification
+## Task 6 — Closeout
 
-- Full test suite: `172` tests passing
-- Test floor: `172`
-- Typecheck: passing
-- Build: passing
-- ESLint: warnings only, no errors
-- Current worktree includes the Task 3b/3c/4/5 follow-through listed above.
+- **Final commit SHA:** `fe7b720`
+- **Files touched:** 9 files, +2546 insertions, -80 deletions
+- **Test count:** 189 passing
+- **Test floor:** 189 (raised from 172)
+- **Typecheck:** passing
+- **Build:** passing
+- **ESLint:** 0 errors, 15 warnings (existing)
+
+## Deferred items (out of scope per directive)
+
+- Roads/ROW layers (arriving separately)
+- Vector tile server implementation
+- Import-wizard UI polish
+- Portfolio / onboarding (chunk 45)
+- Operations / DR (chunk 49)
+- Acceptance mega-journey (chunk 50)
+- Any additional curriculum projects beyond Parkside Georgetown
+
+## Blockers
+
+- None.
+
+## Notes
+
+- The `p10-premises-generated.ts` file (1736 lines) contains 91 hardcoded premise `NetworkElement`s extracted from `data/basemap/wilco-l131725c/addresses.geojson`. It was generated by a one-time Node.js script (`scripts/gen-parkside-premises.js`, not committed) to satisfy the "seeded from real coordinates" directive while keeping the fixture client-safe (no `fs` at import time).
+- The `trespass` check loads parcel geometry from basemap data and uses `@turf/turf` (`booleanPointInPolygon`, `booleanIntersects`) for geometry intersection. It is registered in `CHECK_REGISTRY` and included in Parkside's `gradingWeights`. The `buildContext` / `runGrading` / `runSingleCheck` signatures were extended with an optional `basemapData` parameter so the check can access parcel polygons.

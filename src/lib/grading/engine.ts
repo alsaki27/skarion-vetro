@@ -1,4 +1,5 @@
 import type {
+  BasemapDataset,
   CheckResult,
   GradingResult,
   LineElement,
@@ -8,6 +9,7 @@ import type {
 } from "../types";
 import { isContainerType, isHostableType, isLineElement, isPointElement, HARDWARE_CATALOG } from "../types";
 import { distanceFt, pathLengthFt } from "../geometry";
+import { booleanPointInPolygon, booleanIntersects, point, lineString } from "@turf/turf";
 
 // ---------------------------------------------------------------------------
 // Design snapshot the checks operate on. One implementation, two consumers:
@@ -23,6 +25,8 @@ export interface DesignContext {
   graph: Map<string, Set<string>>;
   /** container id -> set of hosted element ids (containment hierarchy) */
   containment: Map<string, Set<string>>;
+  /** parcel/address basemap data for geometry-aware checks (optional) */
+  basemapData?: BasemapDataset | null;
 }
 
 const ENDPOINT_SNAP_FT = 40;
@@ -52,6 +56,7 @@ function resolveEndpoint(
 export function buildContext(
   project: ProjectFixture,
   elements: NetworkElement[],
+  basemapData?: BasemapDataset | null,
 ): DesignContext {
   const points = elements.filter(isPointElement);
   const lines = elements.filter(isLineElement);
@@ -97,7 +102,7 @@ export function buildContext(
     }
   }
 
-  return { project, elements, points, lines, graph, containment };
+  return { project, elements, points, lines, graph, containment, basemapData };
 }
 
 /** BFS: is there a path between two point elements through the line graph? */
@@ -622,6 +627,87 @@ const fiber_assignment_complete: CheckDef = {
   },
 };
 
+const trespass: CheckDef = {
+  id: "trespass",
+  category: "compliance",
+  run(ctx) {
+    if (!ctx.basemapData?.parcels?.length) {
+      return {
+        checkId: "trespass",
+        category: "compliance",
+        status: "pass",
+        score: 100,
+        message: "No basemap parcel data available for trespass check.",
+      };
+    }
+
+    const serviceableSet = new Set(ctx.project.serviceableParcelIds ?? []);
+    const violations: { lineId: string; parcelId: string }[] = [];
+
+    for (const line of ctx.lines) {
+      if (line.path.length < 2) continue;
+      // Check each vertex
+      for (const vertex of line.path) {
+        for (const parcel of ctx.basemapData.parcels) {
+          const parcelId = String(parcel.properties.parcel_external_id ?? "");
+          if (!parcelId || serviceableSet.has(parcelId)) continue;
+
+          try {
+            const inside = booleanPointInPolygon(point(vertex), parcel.geometry as GeoJSON.Polygon);
+            if (inside) {
+              violations.push({ lineId: line.id, parcelId });
+            }
+          } catch {
+            // Skip malformed geometry
+          }
+        }
+      }
+      // Check line segments for crossing parcels (more robust than vertices alone)
+      for (let i = 0; i < line.path.length - 1; i++) {
+        const segment = lineString([line.path[i], line.path[i + 1]]);
+        for (const parcel of ctx.basemapData.parcels) {
+          const parcelId = String(parcel.properties.parcel_external_id ?? "");
+          if (!parcelId || serviceableSet.has(parcelId)) continue;
+
+          try {
+            const crosses = booleanIntersects(segment, parcel.geometry as GeoJSON.Polygon);
+            if (crosses) {
+              violations.push({ lineId: line.id, parcelId });
+            }
+          } catch {
+            // Skip malformed geometry
+          }
+        }
+      }
+    }
+
+    // Deduplicate
+    const uniqueKeys = new Set<string>();
+    const uniqueViolations: { lineId: string; parcelId: string }[] = [];
+    for (const v of violations) {
+      const key = `${v.lineId}-${v.parcelId}`;
+      if (!uniqueKeys.has(key)) {
+        uniqueKeys.add(key);
+        uniqueViolations.push(v);
+      }
+    }
+
+    const score = uniqueViolations.length === 0 ? 100 : Math.max(0, 100 - uniqueViolations.length * 10);
+
+    return {
+      checkId: "trespass",
+      category: "compliance",
+      status: uniqueViolations.length === 0 ? "pass" : "fail",
+      score,
+      message:
+        uniqueViolations.length === 0
+          ? "All routes stay within served parcels."
+          : `Trespass on non-served parcel(s): ${uniqueViolations.map((v) => v.parcelId).join(", ")}.`,
+      elementIds: [...new Set(uniqueViolations.map((v) => v.lineId))],
+    };
+  },
+};
+
 export const CHECK_REGISTRY: Record<string, CheckDef> = {
   coverage,
   connectivity,
@@ -640,6 +726,7 @@ export const CHECK_REGISTRY: Record<string, CheckDef> = {
   // Chunk 13 LLD checks
   split_ratio_valid,
   fiber_assignment_complete,
+  trespass,
 };
 
 // ---------------------------------------------------------------------------
@@ -647,8 +734,9 @@ export const CHECK_REGISTRY: Record<string, CheckDef> = {
 export function runGrading(
   project: ProjectFixture,
   elements: NetworkElement[],
+  basemapData?: BasemapDataset | null,
 ): GradingResult {
-  const ctx = buildContext(project, elements);
+  const ctx = buildContext(project, elements, basemapData);
   const checks = Object.keys(project.gradingWeights)
     .map((id) => CHECK_REGISTRY[id])
     .filter(Boolean)
@@ -680,8 +768,9 @@ export function runSingleCheck(
   checkId: string,
   project: ProjectFixture,
   elements: NetworkElement[],
+  basemapData?: BasemapDataset | null,
 ): CheckResult | null {
   const def = CHECK_REGISTRY[checkId];
   if (!def) return null;
-  return def.run(buildContext(project, elements));
+  return def.run(buildContext(project, elements, basemapData));
 }
