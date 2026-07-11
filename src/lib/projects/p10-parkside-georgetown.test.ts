@@ -150,4 +150,16 @@ describe("Parkside Georgetown project fixture", () => {
     expect(result!.message).toContain(nonServedParcelId);
     expect(result!.elementIds).toContain("test-drop-trespass");
   });
+
+  it("carries an orgId matching the dev-login org, so its layer routes are reachable", () => {
+    // Regression: the parcel/address layer API routes 404 unconditionally
+    // when project.orgId is unset, independent of authentication. This is
+    // the org id issued by the dev login route (src/app/api/auth/login) —
+    // discovered by driving the app end-to-end in a browser, not by unit
+    // tests, since existing tests call the check registry directly and
+    // never exercise the HTTP layer/auth path.
+    expect(p10ParksideGeorgetown.orgId).toBe(
+      "00000000-0000-0000-0000-000000000001",
+    );
+  });
 });

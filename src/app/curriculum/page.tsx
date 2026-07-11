@@ -1,9 +1,16 @@
 import Link from "next/link";
 import { PROJECTS } from "@/lib/projects";
 
-// Only HLD Projects 2–4 (P2 Oakwood, P3 Sunset) are published for the current scope.
-// P1 Greenfield belongs to the AutoCAD HLD 1 phase; P4–P9 are future/optional content.
-const ACTIVE_PROJECT_IDS = new Set(["p2-oakwood-underground", "p3-sunset-ridge"]);
+// p10 (Parkside Georgetown) is the flagship active project: it runs on a real,
+// provenance-tracked county basemap (real WCAD parcels + real E911 address
+// points) with checks validated against real geometry. p2/p3 are legacy
+// synthetic fixtures kept active as secondary practice scenarios. p1, p4-p9
+// remain deferred per the platform boundary — not yet on real data.
+const ACTIVE_PROJECT_IDS = new Set([
+  "p10-parkside-georgetown",
+  "p2-oakwood-underground",
+  "p3-sunset-ridge",
+]);
 
 const DEFERRED_PROJECTS = [
   { id: "p1-greenfield", title: "Project 1: Greenfield First Light", env: "Aerial · Beginner" },
@@ -13,7 +20,6 @@ const DEFERRED_PROJECTS = [
   { id: "p7-parkview", title: "Project 7: Parkview MDU", env: "Mixed · Advanced" },
   { id: "p8-westside", title: "Project 8: Westside Village HLD", env: "Mixed · Capstone" },
   { id: "p9-riverside", title: "Project 9: Riverside Crossing", env: "Mixed · Capstone" },
-  { id: "p10-parkside-georgetown", title: "Project 10: Parkside Georgetown", env: "Mixed · Basemap" },
 ];
 
 export default function CurriculumPage() {

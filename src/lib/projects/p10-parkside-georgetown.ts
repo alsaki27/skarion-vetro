@@ -111,5 +111,9 @@ export const p10ParksideGeorgetown: ProjectFixture = {
     trespass: 0.20,
   },
   basemapId: "wilco-l131725c",
+  // Matches the dev-login org (src/app/api/auth/login/route.ts). The
+  // parcel/address layer routes 404 without an org match — every fixture
+  // that serves a real basemap must set this or its layers are unreachable.
+  orgId: "00000000-0000-0000-0000-000000000001",
   serviceableParcelIds,
 };

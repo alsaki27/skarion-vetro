@@ -141,9 +141,14 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
 
     async function loadBasemapData() {
       try {
+        // These routes are auth-gated (tenant-scoped parcel/address data).
+        // Login returns the JWT in the response body, stored client-side —
+        // there is no session cookie, so it must be attached explicitly.
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const authHeaders: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
         const [parcelsRes, addressesRes] = await Promise.all([
-          fetch(`/api/projects/${project.id}/layers/parcels`),
-          fetch(`/api/projects/${project.id}/layers/addresses`),
+          fetch(`/api/projects/${project.id}/layers/parcels`, { headers: authHeaders }),
+          fetch(`/api/projects/${project.id}/layers/addresses`, { headers: authHeaders }),
         ]);
         if (!parcelsRes.ok || !addressesRes.ok) {
           throw new Error("Failed to load parcel/address basemap data");
