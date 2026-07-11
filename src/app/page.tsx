@@ -57,10 +57,8 @@ const HOW_IT_WORKS = [
 ];
 
 const PROJECT_PREVIEWS = [
-  { id: "p1-greenfield", num: "P1", title: "Greenfield Build", difficulty: "Beginner", env: "Aerial" },
-  { id: "p2-oakwood", num: "P2", title: "Oakwood Underground", difficulty: "Beginner", env: "Underground" },
-  { id: "p3-sunset", num: "P3", title: "Sunset Aerial", difficulty: "Intermediate", env: "Aerial" },
-  { id: "p4-split-lab", num: "P4", title: "Split Architecture Lab", difficulty: "Intermediate", env: "Aerial" },
+  { id: "p2-oakwood-underground", num: "P2", title: "Oakwood Underground", difficulty: "Beginner", env: "Underground" },
+  { id: "p3-sunset-ridge", num: "P3", title: "Sunset Ridge Aerial", difficulty: "Intermediate", env: "Aerial" },
 ];
 
 const FAQ = [

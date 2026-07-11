@@ -10,10 +10,35 @@ type Variables = {
 
 const app = new Hono<{ Variables: Variables }>();
 
-app.use("*", cors());
+// Restricted CORS — allow list from env, fall back to localhost in dev
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:8787").split(",").map(s => s.trim());
+app.use("*", cors({
+  origin: ALLOWED_ORIGINS,
+  credentials: true,
+}));
 
 function sql() {
   return neon(process.env.NEON_DATABASE_URL ?? "");
+}
+
+// Safe project DTO — never returns optimal_design, grading secrets, or other answer-key fields
+function safeProjectDto(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    difficulty: row.difficulty,
+    environment: row.environment,
+    split_architecture: row.split_architecture,
+    pass_threshold: row.pass_threshold,
+    location_name: row.location_name,
+    map_center: row.map_center,
+    map_zoom: row.map_zoom,
+    constraints: row.constraints,
+    existing_infrastructure: row.existing_infrastructure,
+    is_active: row.is_active,
+  };
 }
 
 // ===========================================================================
@@ -43,10 +68,13 @@ app.get("/api/projects", async (c) => {
 app.get("/api/projects/:slug", async (c) => {
   try {
     const { slug } = c.req.param();
+    const { org_id } = c.var.auth;
     const db = sql();
-    const rows = await db`SELECT * FROM projects WHERE slug = ${slug} LIMIT 1`;
+    const rows = await db`
+      SELECT * FROM projects WHERE slug = ${slug} AND (org_id = ${org_id} OR org_id IS NULL) LIMIT 1
+    `;
     if (!rows.length) return c.json({ error: "Not found" }, 404);
-    return c.json(rows[0]);
+    return c.json(safeProjectDto(rows[0]));
   } catch (err) {
     console.error(`GET /api/projects/${c.req.param("slug")} failed`, err);
     return c.json({ error: "Internal server error" }, 500);
@@ -76,10 +104,22 @@ app.post("/api/designs/save", async (c) => {
 app.get("/api/designs/:id", async (c) => {
   try {
     const { id } = c.req.param();
+    const { sub, org_id, role } = c.var.auth;
     const db = sql();
-    const rows = await db`
-      SELECT * FROM design_snapshots WHERE id = ${id} AND org_id = ${c.var.auth.org_id}
-    `;
+
+    let rows;
+    if (role === "student") {
+      // Students can only read their own designs
+      rows = await db`
+        SELECT * FROM design_snapshots WHERE id = ${id} AND org_id = ${org_id} AND user_id = ${sub}
+      `;
+    } else {
+      // Instructors/admins can read any design in their org
+      rows = await db`
+        SELECT * FROM design_snapshots WHERE id = ${id} AND org_id = ${org_id}
+      `;
+    }
+
     if (!rows.length) return c.json({ error: "Not found" }, 404);
     return c.json(rows[0]);
   } catch (err) {
@@ -91,9 +131,16 @@ app.get("/api/designs/:id", async (c) => {
 app.get("/api/progress/:userId", async (c) => {
   try {
     const { userId } = c.req.param();
+    const { sub, org_id, role } = c.var.auth;
+
+    // Students may only read their own progress
+    if (role === "student" && userId !== sub) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
     const db = sql();
     const rows = await db`
-      SELECT * FROM candidate_progress WHERE user_id = ${userId}
+      SELECT * FROM candidate_progress WHERE user_id = ${userId} AND org_id = ${org_id}
     `;
     return c.json({ progress: rows });
   } catch (err) {
@@ -103,6 +150,12 @@ app.get("/api/progress/:userId", async (c) => {
 });
 
 app.post("/api/dev/seed", async (c) => {
+  // Guard: do not run in production or when a real JWT_SECRET is configured
+  const secret = process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production" || (secret && secret !== "dev-secret-change-me-before-prod--min-32-bytes")) {
+    return c.json({ error: "Not available in production" }, 403);
+  }
+
   try {
     const { org_id } = c.var.auth;
     const db = sql();

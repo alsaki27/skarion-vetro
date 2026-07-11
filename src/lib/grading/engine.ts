@@ -412,14 +412,14 @@ const container_capacity: CheckDef = {
     if (containers.length === 0) {
       return { checkId: "container_capacity", category: "containment", status: "pass", score: 100, message: "No containers to check." };
     }
-    const overfilled: string[] = [];
+    const overfilled: { message: string; id: string }[] = [];
     for (const c of containers) {
       const hosted = ctx.containment.get(c.id)?.size ?? 0;
       const catalogKey = String(c.attributes.catalog_key ?? "");
       const entry = catalogKey ? HARDWARE_CATALOG[catalogKey] : undefined;
       const maxHosted = entry?.maxHostedCount ?? 4;
       if (hosted > maxHosted) {
-        overfilled.push(`${c.label ?? c.type} has ${hosted} item(s) (capacity ${maxHosted})`);
+        overfilled.push({ message: `${c.label ?? c.type} has ${hosted} item(s) (capacity ${maxHosted})`, id: c.id });
       }
     }
     const score = containers.length === 0 ? 100 : Math.round(((containers.length - overfilled.length) / containers.length) * 100);
@@ -430,8 +430,8 @@ const container_capacity: CheckDef = {
       score,
       message: overfilled.length === 0
         ? `All ${containers.length} container(s) are within capacity.`
-        : `Overfilled: ${overfilled.join("; ")}.`,
-      elementIds: overfilled.length > 0 ? [] : undefined,
+        : `Overfilled: ${overfilled.map((o) => o.message).join("; ")}.`,
+      elementIds: overfilled.length > 0 ? overfilled.map((o) => o.id) : undefined,
     };
   },
 };

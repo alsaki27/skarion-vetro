@@ -2,8 +2,7 @@
 // Returns an invite token that the invited user presents at signup.
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/auth";
-
-const INVITE_TOKENS = new Map<string, { email: string; orgId: string; role: string; expiresAt: number }>();
+import { INVITE_TOKENS } from "@/lib/auth/invite-tokens";
 
 export async function POST(request: NextRequest) {
   try {

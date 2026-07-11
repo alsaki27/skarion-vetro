@@ -15,12 +15,15 @@ export async function GET(
     return NextResponse.json({ status: "dev_mode", message: "Database not connected. Load from client state." });
   }
 
+  // Students may read only their own designs; instructors/admins may read any in the org
+  const conditions = [eq(schema.designSnapshots.id, id)];
+  if (auth.role === "student") {
+    conditions.push(eq(schema.designSnapshots.userId, auth.sub));
+  }
+
   const snapshots = await db.select()
     .from(schema.designSnapshots)
-    .where(and(
-      eq(schema.designSnapshots.id, id),
-      eq(schema.designSnapshots.userId, auth.sub),
-    ))
+    .where(and(...conditions))
     .limit(1);
 
   if (!snapshots.length) {

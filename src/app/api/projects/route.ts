@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { PROJECTS } from "@/lib/projects";
 
+// Only expose fields safe for students — never grading answer keys
 const PUBLIC_PROJECT_FIELDS = [
   "id", "title", "difficulty", "environment", "splitArchitecture",
   "mapCenter", "mapZoom", "preloadedElements", "requirements",
   "constraints", "constraintNotes", "deliverables", "scenario",
-  "tasks", "tip", "optimalStats", "passThreshold",
+  "tasks", "tip", "passThreshold",
 ] as const;
 
 export async function GET() {

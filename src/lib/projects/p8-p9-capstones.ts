@@ -52,6 +52,9 @@ export const p8Westside: ProjectFixture = {
       label: `Shop ${n}`, position: [LNG - 0.003 + (n - 1) * 0.003, LAT0 + 0.001] as [number, number],
       attributes: { address: `${n} Commercial Row`, unit_count: 1 },
     })),
+    // 2 MDU buildings
+    { id: "p8_mdu_1", type: "premise", locked: true, label: "MDU A", position: [LNG + 0.001, LAT0 + 0.003] as [number, number], attributes: { address: "MDU Building A", unit_count: 6 } },
+    { id: "p8_mdu_2", type: "premise", locked: true, label: "MDU B", position: [LNG + 0.003, LAT0 + 0.002] as [number, number], attributes: { address: "MDU Building B", unit_count: 4 } },
   ],
   requirements: [
     { id: "req_connectivity", label: "All 17 endpoints connected", checkId: "connectivity" },

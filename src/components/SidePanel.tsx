@@ -272,12 +272,14 @@ export default function SidePanel({ project }: { project: ProjectFixture }) {
       {!lldMode && tab === "lld" && (
         <div className="p-3 text-xs text-zinc-500">
           <p className="mb-2">LLD mode is locked until you pass HLD grading.</p>
-          <button
-            onClick={() => setLldMode(true)}
-            className="rounded bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-500"
-          >
-            Unlock LLD Mode (dev override)
-          </button>
+          {process.env.NODE_ENV === "development" && (
+            <button
+              onClick={() => setLldMode(true)}
+              className="rounded bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-500"
+            >
+              Unlock LLD Mode (dev only)
+            </button>
+          )}
         </div>
       )}
 

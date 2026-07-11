@@ -338,3 +338,206 @@ export const rubricScores = pgTable("rubric_scores", {
   instructorNote: text("instructor_note"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
+
+// ===========================================================================
+// GIS Workspace — Layer system (Chunk 2)
+// ===========================================================================
+
+export const projectLayers = pgTable("project_layers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  layerGroup: text("layer_group").notNull().default("proposed_network"),
+  layerType: text("layer_type", {
+    enum: ["basemap", "reference", "proposed", "existing", "annotation"],
+  }).notNull(),
+  sourceId: uuid("source_id").references(() => dataSources.id),
+  geometryType: text("geometry_type", { enum: ["point", "line", "polygon"] }),
+  visible: boolean("visible").notNull().default(true),
+  opacity: integer("opacity").notNull().default(100),
+  zIndex: integer("z_index").notNull().default(0),
+  style: jsonb("style").notNull().default({}),
+  labelRules: jsonb("label_rules").notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_project_layers_project").on(table.projectId, table.zIndex),
+]);
+
+// ===========================================================================
+// GIS Workspace — Study areas (Chunk 5)
+// ===========================================================================
+
+export const studyAreas = pgTable("study_areas", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  stateFips: text("state_fips").notNull(),
+  countyFips: text("county_fips"),
+  countyName: text("county_name"),
+  stateAbbrev: text("state_abbrev"),
+  bbox: jsonb("bbox").notNull(),
+  geometry: text("geometry").notNull(),
+  crsPreference: text("crs_preference").notNull().default("EPSG:4326"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_study_areas_org").on(table.orgId),
+]);
+
+export const administrativeAreas = pgTable("administrative_areas", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  studyAreaId: uuid("study_area_id").notNull().references(() => studyAreas.id, { onDelete: "cascade" }),
+  areaType: text("area_type", { enum: ["state", "county", "municipality", "census_tract"] }).notNull(),
+  name: text("name").notNull(),
+  fipsCode: text("fips_code"),
+  geometry: text("geometry").notNull(),
+  source: text("source", { enum: ["census_tiger", "user_upload", "arcgis"] }).notNull(),
+  sourceUrl: text("source_url"),
+  sourceDate: timestamp("source_date", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_administrative_areas_study").on(table.studyAreaId),
+]);
+
+// ===========================================================================
+// GIS Workspace — Data source registry (Chunk 6)
+// ===========================================================================
+
+export const dataSources = pgTable("data_sources", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  sourceType: text("source_type", {
+    enum: ["arcgis_featureserver", "shapefile", "geojson", "kml", "census_tiger", "overture", "openaddresses"],
+  }).notNull(),
+  publisher: text("publisher").notNull(),
+  serviceUrl: text("service_url"),
+  description: text("description"),
+  license: text("license"),
+  attribution: text("attribution"),
+  crs: text("crs"),
+  geometryType: text("geometry_type"),
+  featureCount: integer("feature_count"),
+  checksum: text("checksum"),
+  retrievalDate: timestamp("retrieval_date", { withTimezone: true }),
+  refreshPolicy: text("refresh_policy"),
+  isApproved: boolean("is_approved").notNull().default(false),
+  metadata: jsonb("metadata").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_data_sources_org").on(table.orgId),
+]);
+
+export const dataSourceVersions = pgTable("data_source_versions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceId: uuid("source_id").notNull().references(() => dataSources.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull(),
+  schemaSnapshot: jsonb("schema_snapshot").notNull(),
+  geometrySnapshot: jsonb("geometry_snapshot"),
+  featureCount: integer("feature_count"),
+  checksum: text("checksum"),
+  importedAt: timestamp("imported_at", { withTimezone: true }),
+  importedBy: uuid("imported_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_data_source_versions_source").on(table.sourceId, table.versionNumber),
+]);
+
+export const importJobs = pgTable("import_jobs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  sourceId: uuid("source_id").references(() => dataSources.id),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  targetLayerId: uuid("target_layer_id").references(() => projectLayers.id),
+  status: text("status", { enum: ["pending", "running", "completed", "failed"] }).notNull().default("pending"),
+  fieldMapping: jsonb("field_mapping"),
+  deduplicationRule: text("deduplication_rule"),
+  appendBehavior: text("append_behavior", { enum: ["append", "replace", "update"] }),
+  validationErrors: jsonb("validation_errors"),
+  summary: jsonb("summary"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_import_jobs_org").on(table.orgId),
+  index("idx_import_jobs_project").on(table.projectId),
+]);
+
+// ===========================================================================
+// GIS Workspace — Field mapping templates (Chunk 12)
+// ===========================================================================
+
+export const fieldMappingTemplates = pgTable("field_mapping_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  sourceType: text("source_type").notNull(),
+  countyFips: text("county_fips"),
+  mappings: jsonb("mappings").notNull(),
+  createdBy: uuid("created_by").references(() => users.id),
+  isShared: boolean("is_shared").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_field_mapping_templates_org").on(table.orgId),
+]);
+
+// ===========================================================================
+// GIS Workspace — Road segments & address points (Chunk 15)
+// ===========================================================================
+
+export const roadSegments = pgTable("road_segments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  layerId: uuid("layer_id").references(() => projectLayers.id),
+  segmentId: text("segment_id").notNull(),
+  roadName: text("road_name").notNull(),
+  prefix: text("prefix"),
+  name: text("name"),
+  suffix: text("suffix"),
+  directionalSuffix: text("directional_suffix"),
+  aliases: text("aliases").array(),
+  roadClass: text("road_class"),
+  surface: text("surface"),
+  jurisdiction: text("jurisdiction"),
+  leftFrom: integer("left_from"),
+  leftTo: integer("left_to"),
+  rightFrom: integer("right_from"),
+  rightTo: integer("right_to"),
+  geometry: text("geometry").notNull(),
+  sourceId: uuid("source_id").references(() => dataSources.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_road_segments_project").on(table.projectId),
+  index("idx_road_segments_org").on(table.orgId),
+]);
+
+export const addressPoints = pgTable("address_points", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  layerId: uuid("layer_id").references(() => projectLayers.id),
+  addressId: text("address_id").notNull(),
+  houseNumber: text("house_number"),
+  streetPrefix: text("street_prefix"),
+  streetName: text("street_name"),
+  streetType: text("street_type"),
+  unit: text("unit"),
+  city: text("city"),
+  state: text("state"),
+  postalCode: text("postal_code"),
+  parcelExternalId: text("parcel_external_id"),
+  geometry: text("geometry").notNull(),
+  sourceId: uuid("source_id").references(() => dataSources.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_address_points_project").on(table.projectId),
+  index("idx_address_points_org").on(table.orgId),
+]);

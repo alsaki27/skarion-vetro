@@ -58,7 +58,7 @@ const OPTIMAL_DROP_FT = 250;
 export const p2OakwoodUnderground: ProjectFixture = {
   id: "p2-oakwood-underground",
   title: "Project 2: Oakwood Underground",
-  difficulty: "intermediate",
+  difficulty: "beginner",
   environment: "underground",
   splitArchitecture: "centralized",
   scenario:

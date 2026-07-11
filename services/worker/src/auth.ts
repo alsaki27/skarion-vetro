@@ -13,9 +13,13 @@ type Variables = {
 };
 
 function getSecret(): Uint8Array {
-  return new TextEncoder().encode(
-    process.env.JWT_SECRET ?? "dev-secret-change-me-before-prod--min-32-bytes",
-  );
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === "dev-secret-change-me-before-prod--min-32-bytes") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET is missing or still the default. Refusing to start.");
+    }
+  }
+  return new TextEncoder().encode(secret ?? "dev-secret-change-me-before-prod--min-32-bytes");
 }
 
 export const authMiddleware = createMiddleware<{ Variables: Variables }>(

@@ -3,8 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, schema } from "@/db";
 import { hashPassword, createAccessToken, createRefreshToken } from "@/lib/auth";
-
-const INVITE_TOKENS = new Map<string, { email: string; orgId: string; role: string; expiresAt: number }>();
+import { INVITE_TOKENS } from "@/lib/auth/invite-tokens";
 
 export async function POST(request: NextRequest) {
   try {

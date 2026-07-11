@@ -37,7 +37,8 @@ interface DesignState {
   // history for undo/redo — snapshots of `elements`
   past: Record<string, NetworkElement>[];
   future: Record<string, NetworkElement>[];
-
+  inspectorTab: string;
+  setInspectorTab: (tab: string) => void;
   setTool: (t: Tool) => void;
   setBasemap: (b: Basemap) => void;
   setBasemapCanvasVisible: (v: boolean) => void;
@@ -58,11 +59,8 @@ interface DesignState {
   updateAttributes: (id: string, attrs: Record<string, unknown>) => void;
   moveElement: (id: string, position: LngLat) => void;
   deleteElement: (id: string) => void;
-  /** Add a point element hosted inside a container ( containment ) */
   hostInContainer: (containerId: string, type: PointElementType, position: LngLat) => string;
-  /** Remove a hosted element from its container */
   unhostElement: (hostedId: string) => void;
-  /** Get all elements hosted inside a given container id */
   hostedBy: (containerId: string) => NetworkElement[];
   setGrading: (g: GradingResult | null) => void;
   undo: () => void;
@@ -109,8 +107,10 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   grading: null,
   past: [],
   future: [],
+  inspectorTab: "attributes",
 
   setTool: (tool) => set({ tool, draftPath: [], draftStartElementId: null }),
+  setInspectorTab: (inspectorTab) => set({ inspectorTab }),
   setBasemap: (basemap) => set({ basemap }),
   setBasemapCanvasVisible: (v) => set({ showBasemapCanvas: v }),
   toggleBasemapLayer: (layer) =>

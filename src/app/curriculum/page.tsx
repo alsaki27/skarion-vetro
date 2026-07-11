@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { PROJECTS } from "@/lib/projects";
 
-const UPCOMING = [
-  { id: "p4-split-lab", title: "Project 4: Split Architecture Lab", env: "Aerial · Centralized vs Distributed" },
-  { id: "p5-splice-master", title: "Project 5: Splice Table Master", env: "LLD · Both" },
-  { id: "p6-pole-loading", title: "Project 6: Pole Loading & Make-Ready", env: "Aerial · NESC Loading" },
-  { id: "p7-parkview", title: "Project 7: Parkview MDU", env: "Mixed · MDU" },
+// Only HLD Projects 2–4 (P2 Oakwood, P3 Sunset) are published for the current scope.
+// P1 Greenfield belongs to the AutoCAD HLD 1 phase; P4–P9 are future/optional content.
+const ACTIVE_PROJECT_IDS = new Set(["p2-oakwood-underground", "p3-sunset-ridge"]);
+
+const DEFERRED_PROJECTS = [
+  { id: "p1-greenfield", title: "Project 1: Greenfield First Light", env: "Aerial · Beginner" },
+  { id: "p4-split-lab", title: "Project 4: Split Architecture Lab", env: "Aerial · Advanced" },
+  { id: "p5-splice-master", title: "Project 5: Splice Table Master", env: "LLD · Mixed" },
+  { id: "p6-pole-loading", title: "Project 6: Pole Loading & Make-Ready", env: "Aerial · Advanced" },
+  { id: "p7-parkview", title: "Project 7: Parkview MDU", env: "Mixed · Advanced" },
   { id: "p8-westside", title: "Project 8: Westside Village HLD", env: "Mixed · Capstone" },
   { id: "p9-riverside", title: "Project 9: Riverside Crossing", env: "Mixed · Capstone" },
 ];
@@ -33,10 +38,10 @@ export default function CurriculumPage() {
       </div>
 
       <h2 className="mb-3 mt-8 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-        Projects
+        Active Projects
       </h2>
       <div className="space-y-3">
-        {projects.map((p) => (
+        {projects.filter((p) => ACTIVE_PROJECT_IDS.has(p.id)).map((p) => (
           <Link
             key={p.id}
             href={`/project/${p.id}`}
@@ -55,19 +60,28 @@ export default function CurriculumPage() {
             </div>
           </Link>
         ))}
-
-        {UPCOMING.map((p) => (
-          <div
-            key={p.id}
-            className="rounded-lg border border-zinc-800/60 bg-zinc-900/50 p-4 opacity-60"
-          >
-            <h3 className="font-semibold text-zinc-400">⚪ {p.title}</h3>
-            <p className="mt-0.5 text-xs text-zinc-600">
-              {p.env} · locked — complete the previous project
-            </p>
-          </div>
-        ))}
       </div>
+
+      {DEFERRED_PROJECTS.length > 0 && (
+        <>
+          <h2 className="mb-3 mt-10 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            In Development
+          </h2>
+          <div className="space-y-2">
+            {DEFERRED_PROJECTS.map((p) => (
+              <div
+                key={p.id}
+                className="rounded-lg border border-zinc-800/60 bg-zinc-900/50 p-4 opacity-60"
+              >
+                <h3 className="font-semibold text-zinc-400">⚪ {p.title}</h3>
+                <p className="mt-0.5 text-xs text-zinc-600">
+                  {p.env} · coming soon
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </main>
   );
 }

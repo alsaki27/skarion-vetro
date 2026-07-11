@@ -1,11 +1,13 @@
 // JWT access & refresh token creation/verification (Chunk 5 Rev 3)
 // Uses jose (Web Crypto API) — works in Node.js, Edge, and Cloudflare Workers.
+// Fails closed in production when JWT_SECRET is missing or still the default.
 
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { requireJwtSecret } from "../env";
 
-const JWT_SECRET_BYTES = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "dev-secret-change-me-before-prod--min-32-bytes",
-);
+function getSecretBytes(): Uint8Array {
+  return new TextEncoder().encode(requireJwtSecret());
+}
 
 const ACCESS_EXPIRY = "15 minutes";
 const REFRESH_EXPIRY = "7 days";
@@ -28,7 +30,7 @@ export async function createAccessToken(payload: Omit<AccessTokenPayload, "iat" 
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(ACCESS_EXPIRY)
-    .sign(JWT_SECRET_BYTES);
+    .sign(getSecretBytes());
 }
 
 export async function createRefreshToken(userId: string, tokenFamily: string): Promise<string> {
@@ -37,12 +39,12 @@ export async function createRefreshToken(userId: string, tokenFamily: string): P
     .setSubject(userId)
     .setIssuedAt()
     .setExpirationTime(REFRESH_EXPIRY)
-    .sign(JWT_SECRET_BYTES);
+    .sign(getSecretBytes());
 }
 
 export async function verifyAccessToken(token: string): Promise<AccessTokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET_BYTES, {
+    const { payload } = await jwtVerify(token, getSecretBytes(), {
       algorithms: ["HS256"],
       requiredClaims: ["sub", "org_id", "role"],
     });
@@ -54,7 +56,7 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
 
 export async function verifyRefreshToken(token: string): Promise<RefreshTokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET_BYTES, {
+    const { payload } = await jwtVerify(token, getSecretBytes(), {
       algorithms: ["HS256"],
       requiredClaims: ["sub", "token_family"],
     });
