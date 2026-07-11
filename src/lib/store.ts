@@ -22,6 +22,7 @@ export type Basemap = "satellite" | "streets";
 interface DesignState {
   elements: Record<string, NetworkElement>;
   selectedId: string | null;
+  selectedIds: Set<string>;
   tool: Tool;
   basemap: Basemap;
   /** Whether CAD basemap layers (EOP/CL/RW/Parcel) are shown */
@@ -45,6 +46,8 @@ interface DesignState {
   toggleBasemapLayer: (layer: string) => void;
   setLldMode: (v: boolean) => void;
   select: (id: string | null) => void;
+  toggleSelection: (id: string) => void;
+  clearSelection: () => void;
   loadElements: (els: NetworkElement[]) => void;
   addPoint: (type: PointElementType, position: LngLat) => string;
   beginLine: (start: LngLat, startElementId?: string) => void;
@@ -97,6 +100,7 @@ const DEFAULT_POINT_ATTRS: Partial<Record<PointElementType, Record<string, unkno
 export const useDesignStore = create<DesignState>((set, get) => ({
   elements: {},
   selectedId: null,
+  selectedIds: new Set<string>(),
   tool: "select",
   basemap: "satellite",
   showBasemapCanvas: false,
@@ -118,7 +122,15 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       visibleBasemapLayers: { ...s.visibleBasemapLayers, [layer]: !s.visibleBasemapLayers[layer] },
     })),
   setLldMode: (lldMode) => set({ lldMode }),
-  select: (selectedId) => set({ selectedId }),
+  select: (selectedId) => set({ selectedId, selectedIds: selectedId ? new Set([selectedId]) : new Set() }),
+
+  toggleSelection: (id) => set((s) => {
+    const next = new Set(s.selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return { selectedIds: next, selectedId: id };
+  }),
+
+  clearSelection: () => set({ selectedId: null, selectedIds: new Set() }),
 
   loadElements: (els) =>
     set({
@@ -127,6 +139,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       future: [],
       grading: null,
       selectedId: null,
+      selectedIds: new Set(),
     }),
 
   addPoint: (type, position) => {

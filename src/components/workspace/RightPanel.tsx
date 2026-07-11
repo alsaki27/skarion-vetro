@@ -66,12 +66,14 @@ export function RightPanel() {
     if (!selected) return [{ id: "attributes", label: "Attributes" }];
     const base: { id: string; label: string; badge?: number }[] = [
       { id: "attributes", label: "Attributes" },
+      { id: "source", label: "Source" },
       { id: "relationships", label: "Relationships", badge: relationships.length },
     ];
     if (isContainer) base.push({ id: "containment", label: "Containment" });
     if (isPoint) base.push({ id: "connectivity", label: "Connectivity" });
     if (isContainer || isLine) base.push({ id: "capacity", label: "Capacity" });
     base.push({ id: "validation", label: "Validation", badge: elementChecks.length });
+    base.push({ id: "history", label: "History" });
     base.push({ id: "notes", label: "Notes" });
     return base;
   }, [selected, isPoint, isLine, isContainer, relationships.length, elementChecks.length]);
@@ -109,11 +111,13 @@ export function RightPanel() {
       </div>
       <div className="flex-1 overflow-y-auto p-2">
         {activeTab === "attributes" && <AttributesTab element={selected} />}
+        {activeTab === "source" && <SourceTab element={selected} />}
         {activeTab === "relationships" && <RelationshipsTab relationships={relationships} />}
         {activeTab === "containment" && isContainer && isPointElement(selected) && <ContainmentTab element={selected} />}
         {activeTab === "connectivity" && isPoint && isPointElement(selected) && <ConnectivityTab element={selected} />}
         {activeTab === "capacity" && (isContainer || isLine) && <CapacityTab element={selected} />}
         {activeTab === "validation" && <ValidationTab checks={elementChecks} />}
+        {activeTab === "history" && <HistoryTab elementId={selected.id} />}
         {activeTab === "notes" && <NotesTab elementId={selected.id} />}
       </div>
     </div>
@@ -152,6 +156,33 @@ function AttributesTab({ element }: { element: import("@/lib/types").NetworkElem
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function SourceTab({ element }: { element: import("@/lib/types").NetworkElement }) {
+  const attrs = element.attributes ?? {};
+  return (
+    <div className="space-y-1 text-xs">
+      <div className="grid grid-cols-[1fr_1fr] gap-1">
+        <div className="text-zinc-500">Source</div>
+        <div className="text-zinc-300">{String(attrs.source_id ?? "—")}</div>
+        <div className="text-zinc-500">Publisher</div>
+        <div className="text-zinc-300">{String(attrs.publisher ?? "—")}</div>
+        <div className="text-zinc-500">CRS</div>
+        <div className="text-zinc-300">{String(attrs.crs ?? "EPSG:4326")}</div>
+        <div className="text-zinc-500">Import Date</div>
+        <div className="text-zinc-300">{String(attrs.import_date ?? "—")}</div>
+      </div>
+    </div>
+  );
+}
+
+function HistoryTab({ elementId }: { elementId: string }) {
+  void elementId;
+  return (
+    <div className="text-xs text-zinc-500">
+      <p>Element history tracking will be available once versioned design revisions are implemented.</p>
     </div>
   );
 }
