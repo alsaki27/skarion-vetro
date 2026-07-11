@@ -3,9 +3,13 @@
 
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-const JWT_SECRET_BYTES = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "dev-secret-change-me-before-prod--min-32-bytes",
-);
+function getJwtSecretBytes(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET is required in production — set it before starting the server");
+  }
+  return new TextEncoder().encode(secret ?? "dev-secret-change-me-before-prod--min-32-bytes");
+}
 
 const ACCESS_EXPIRY = "15 minutes";
 const REFRESH_EXPIRY = "7 days";
@@ -28,7 +32,7 @@ export async function createAccessToken(payload: Omit<AccessTokenPayload, "iat" 
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(ACCESS_EXPIRY)
-    .sign(JWT_SECRET_BYTES);
+    .sign(getJwtSecretBytes());
 }
 
 export async function createRefreshToken(userId: string, tokenFamily: string): Promise<string> {
@@ -37,12 +41,12 @@ export async function createRefreshToken(userId: string, tokenFamily: string): P
     .setSubject(userId)
     .setIssuedAt()
     .setExpirationTime(REFRESH_EXPIRY)
-    .sign(JWT_SECRET_BYTES);
+    .sign(getJwtSecretBytes());
 }
 
 export async function verifyAccessToken(token: string): Promise<AccessTokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET_BYTES, {
+    const { payload } = await jwtVerify(token, getJwtSecretBytes(), {
       algorithms: ["HS256"],
       requiredClaims: ["sub", "org_id", "role"],
     });
@@ -54,7 +58,7 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
 
 export async function verifyRefreshToken(token: string): Promise<RefreshTokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET_BYTES, {
+    const { payload } = await jwtVerify(token, getJwtSecretBytes(), {
       algorithms: ["HS256"],
       requiredClaims: ["sub", "token_family"],
     });

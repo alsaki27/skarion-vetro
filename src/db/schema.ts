@@ -300,6 +300,28 @@ export const basemapCanvasAssets = pgTable("basemap_canvas_assets", {
 });
 
 // ===========================================================================
+// Auth Sessions — refresh token rotation, revocation, family tracking
+// ===========================================================================
+
+export const authSessions = pgTable("auth_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").notNull().references(() => organizations.id),
+  tokenFamily: text("token_family").notNull(),
+  refreshTokenHash: text("refresh_token_hash").notNull(),
+  rotationCounter: integer("rotation_counter").notNull().default(0),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  lastIp: text("last_ip"),
+  lastUserAgent: text("last_user_agent"),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_auth_sessions_user").on(table.userId),
+  index("idx_auth_sessions_family").on(table.tokenFamily),
+]);
+
+// ===========================================================================
 // AI layer
 // ===========================================================================
 
