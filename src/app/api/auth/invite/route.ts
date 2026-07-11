@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/auth";
+import { authorize } from "@/lib/authorize";
 import { createInvite } from "@/lib/invitations";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -10,9 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    if (auth.role !== "admin" && auth.role !== "instructor") {
-      return NextResponse.json({ error: "Only admin and instructor roles can create invites" }, { status: 403 });
-    }
+    authorize({ userId: auth.sub, orgId: auth.org_id, role: auth.role, isPlatformStaff: false }, "member.invite");
 
     const body = await request.json();
     const { email, role } = body;
