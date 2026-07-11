@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "skarion-vetro/parcel-feature.schema.json",
+  "title": "Canonical parcel feature (student-facing basemap layer)",
+  "description": "Every parcel feature in a Skarion Vetro basemap fixture must validate against this schema. Restricted assessor fields (owner names, mailing addresses, valuations) are intentionally not representable.",
+  "type": "object",
+  "required": ["type", "properties", "geometry"],
+  "properties": {
+    "type": { "const": "Feature" },
+    "geometry": {
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": { "enum": ["Polygon", "MultiPolygon"] }
+      }
+    },
+    "properties": {
+      "type": "object",
+      "required": ["parcel_external_id", "site_address", "land_use", "source_id"],
+      "additionalProperties": false,
+      "properties": {
+        "parcel_external_id": {
+          "type": "string", "minLength": 1, "maxLength": 20,
+          "description": "County parcel identifier (WCAD PARCELID). Stable join key."
+        },
+        "site_address": {
+          "type": ["string", "null"], "maxLength": 120,
+          "description": "Situs address as published (WCAD SITEADDRES). May be blank for unbuilt lots."
+        },
+        "land_use": {
+          "type": "string",
+          "description": "Normalized land-use class.",
+          "enum": ["residential", "land", "land_transitional", "commercial", "other"]
+        },
+        "land_use_source": {
+          "type": ["string", "null"], "maxLength": 40,
+          "description": "Original publisher use description (WCAD USEDSCRP), preserved verbatim."
+        },
+        "acreage": {
+          "type": ["number", "null"], "minimum": 0,
+          "description": "Assessed acreage (WCAD AssessedAc)."
+        },
+        "neighborhood_code": { "type": ["string", "null"], "maxLength": 12 },
+        "plat_year": {
+          "type": ["integer", "null"], "minimum": 1900, "maximum": 2100,
+          "description": "Year parsed from the recording instrument; proxy for construction vintage."
+        },
+        "water_service": { "type": ["string", "null"], "maxLength": 4 },
+        "sewer_service": { "type": ["string", "null"], "maxLength": 4 },
+        "source_id": {
+          "type": "string",
+          "description": "Publisher GlobalID (WCAD). Traceability to the authoritative record."
+        },
+        "source_last_update": { "type": ["string", "null"], "maxLength": 24 },
+        "map_number": { "type": ["string", "null"], "maxLength": 64 }
+      }
+    }
+  }
+}
