@@ -6,8 +6,10 @@ import type {
   LngLat,
   NetworkElement,
   PointElementType,
+  WorkflowStage,
 } from "./types";
 import { makeId } from "./geometry";
+import { STAGE_ORDER, stageIndex } from "./stages";
 
 export type Tool =
   | "select"
@@ -19,22 +21,19 @@ export type Tool =
 
 export type Basemap = "satellite" | "streets";
 
-interface DesignState {
+export interface DesignState {
   elements: Record<string, NetworkElement>;
   selectedId: string | null;
   tool: Tool;
   basemap: Basemap;
-  /** Whether CAD basemap layers (EOP/CL/RW/Parcel) are shown */
   showBasemapCanvas: boolean;
-  /** Per-layer visibility */
   visibleBasemapLayers: Record<string, boolean>;
-  /** LLD mode (splice table): unlocked after HLD gate pass */
   lldMode: boolean;
-  /** In-progress line draw: vertices placed so far */
+  currentStage: WorkflowStage;
+  completedStages: Set<WorkflowStage>;
   draftPath: LngLat[];
   draftStartElementId: string | null;
   grading: GradingResult | null;
-  // history for undo/redo — snapshots of `elements`
   past: Record<string, NetworkElement>[];
   future: Record<string, NetworkElement>[];
 
@@ -43,6 +42,8 @@ interface DesignState {
   setBasemapCanvasVisible: (v: boolean) => void;
   toggleBasemapLayer: (layer: string) => void;
   setLldMode: (v: boolean) => void;
+  setStage: (stage: WorkflowStage) => void;
+  completeStage: (stage: WorkflowStage) => void;
   select: (id: string | null) => void;
   loadElements: (els: NetworkElement[]) => void;
   addPoint: (type: PointElementType, position: LngLat) => string;
@@ -104,6 +105,8 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   showBasemapCanvas: false,
   visibleBasemapLayers: { EOP: true, CL: true, RW: true, PARCEL: true, BOUNDARY: true },
   lldMode: false,
+  currentStage: "orientation",
+  completedStages: new Set(),
   draftPath: [],
   draftStartElementId: null,
   grading: null,
@@ -118,6 +121,15 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       visibleBasemapLayers: { ...s.visibleBasemapLayers, [layer]: !s.visibleBasemapLayers[layer] },
     })),
   setLldMode: (lldMode) => set({ lldMode }),
+  setStage: (currentStage) => set({ currentStage }),
+  completeStage: (stage) =>
+    set((s) => {
+      const completed = new Set(s.completedStages);
+      completed.add(stage);
+      const nextIdx = stageIndex(stage) + 1;
+      const nextStage = STAGE_ORDER[nextIdx] ?? stage;
+      return { completedStages: completed, currentStage: nextStage };
+    }),
   select: (selectedId) => set({ selectedId }),
 
   loadElements: (els) =>
