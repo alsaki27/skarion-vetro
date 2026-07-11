@@ -3,7 +3,7 @@ import type { NetworkElement } from "@/lib/types";
 import { getDb, schema } from "@/db";
 import { getAuthFromRequest } from "@/lib/auth";
 import { PROJECTS } from "@/lib/projects";
-import { runGrading } from "@/lib/grading/engine";
+import { gradeAuthoritative } from "@/lib/grading/gates";
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
@@ -20,18 +20,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const result = runGrading(project, elements as NetworkElement[]);
+    const result = gradeAuthoritative(project, elements as NetworkElement[]);
 
     // If DB is available, persist the result
     if (db && auth) {
       const grading = await db.insert(schema.gradingResults).values({
         projectId,
         userId: auth.sub,
-        totalScore: result.totalScore,
-        isPassing: result.isPassing,
+        totalScore: result.grading.totalScore,
+        isPassing: result.passed,
         phase: "hld",
-        categoryScores: result.categories,
-        feedback: result.checks,
+        categoryScores: result.grading.categories,
+        feedback: result.grading.checks,
       }).returning();
 
       return NextResponse.json({ ...result, persistedId: grading[0].id });
