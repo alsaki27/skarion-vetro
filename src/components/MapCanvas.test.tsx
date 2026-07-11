@@ -91,6 +91,19 @@ describe("MapCanvas basemap style effect", () => {
     expect(mockSetStyle).toHaveBeenCalledTimes(0);
   });
 
+  it("survives Strict Mode double-mount without calling setStyle", async () => {
+    const { default: MapCanvas } = await import("./MapCanvas");
+    const project = {
+      id: "p1-greenfield",
+      mapCenter: [-97.7, 30.5] as [number, number],
+      mapZoom: 14,
+      orgId: "test-org",
+    } as unknown as ProjectFixture;
+
+    render(React.createElement(React.StrictMode, null, React.createElement(MapCanvas, { project })));
+    expect(mockSetStyle).toHaveBeenCalledTimes(0);
+  });
+
   it("calls map.setStyle once after basemap toggle", async () => {
     const { default: MapCanvas } = await import("./MapCanvas");
     const project = {

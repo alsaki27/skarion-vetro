@@ -187,6 +187,11 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       new maplibregl.ScaleControl({ unit: "imperial" }),
       "bottom-left",
     );
+    // Capture the basemap used at construction so the switching effect
+    // can skip setStyle on the initial render while still reacting to
+    // genuine user toggles.  Tied to the Map instance so it survives
+    // Strict Mode's double-invoke (mount-unmount-remount).
+    initialBasemapRef.current = useDesignStore.getState().basemap;
     mapRef.current = map;
 
     const addBasemapSources = () => {
@@ -457,19 +462,15 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
-  // Flag to skip redundant setStyle call on initial mount.
-  // The map constructor already sets the style (line ~184); firing
-  // setStyle again with the identical style on the first render causes
+  // Store the basemap value used at map construction time so the
+  // switching effect can detect genuine user toggles vs the initial
+  // render — calling setStyle() when the style already matches causes
   // a "Style is not done loading" warning loop that stalls style loading.
-  const isFirstRun = useRef(true);
+  const initialBasemapRef = useRef<string>("satellite");
 
   useEffect(() => {
-    if (isFirstRun.current) {
-      isFirstRun.current = false;
-      return;
-    }
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || basemap === initialBasemapRef.current) return;
     map.setStyle(BASEMAP_STYLES[basemap]);
   }, [basemap]);
 
