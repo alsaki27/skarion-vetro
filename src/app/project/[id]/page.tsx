@@ -30,8 +30,16 @@ export default function ProjectPage({
   const [briefOpen, setBriefOpen] = useState(true);
 
   useEffect(() => {
-    if (project) loadElements(project.preloadedElements);
-  }, [project, loadElements]);
+    if (project) {
+      loadElements(project.preloadedElements);
+      // Ensure progress is recorded server-side
+      fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: id }),
+      }).catch(() => {});
+    }
+  }, [project, loadElements, id]);
 
   if (!project) {
     return (
