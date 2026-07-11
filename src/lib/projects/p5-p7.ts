@@ -1,4 +1,5 @@
 import type { NetworkElement, ProjectFixture } from "../types";
+import { DEV_ORG_ID } from "@/lib/env";
 
 // ===========================================================================
 // P5 — Splice Table Master
@@ -64,6 +65,7 @@ export const p5SpliceMaster: ProjectFixture = {
     "Each fiber on the feeder needs a matching assignment on the distribution cable.",
   mapCenter: [p5Lng, p5Lat],
   mapZoom: 17,
+  orgId: DEV_ORG_ID,
   preloadedElements: p5Elements,
   requirements: [
     { id: "req_assignments", label: "Fiber assignments on all cables", checkId: "fiber_assignment_complete" },
@@ -106,6 +108,7 @@ export const p6PoleLoading: ProjectFixture = {
   ],
   mapCenter: [-97.74, 30.38],
   mapZoom: 16,
+  orgId: DEV_ORG_ID,
   preloadedElements: [
     { id: "p6_co", type: "co", locked: true, label: "CO", position: [-97.74, 30.385], attributes: {} },
     ...[1, 2, 3, 4, 5, 6, 7, 8].map((n): NetworkElement => ({
@@ -167,6 +170,7 @@ export const p7Parkview: ProjectFixture = {
   ],
   mapCenter: [p7Lng, p7Lat],
   mapZoom: 17,
+  orgId: DEV_ORG_ID,
   preloadedElements: [
     { id: "p7_co", type: "co", locked: true, label: "CO", position: [p7Lng, p7Lat + 0.003], attributes: {} },
     { id: "p7_mdf_a", type: "terminal", locked: true, label: "MDF (Bldg A)", position: [p7Lng - 0.001, p7Lat], attributes: { port_count: 24 } },

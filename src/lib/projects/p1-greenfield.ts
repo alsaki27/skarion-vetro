@@ -1,4 +1,5 @@
 import type { NetworkElement, ProjectFixture } from "../types";
+import { DEV_ORG_ID } from "@/lib/env";
 
 // P1 — Greenfield First Light (Breakdown doc, Project Archetype 1)
 // Rural single street: CO at the north end, 5 existing poles heading south,
@@ -83,6 +84,7 @@ export const p1Greenfield: ProjectFixture = {
     "Select the Cable tool, click the CO, then click each pole in order — the line snaps " +
     "to elements. Double-click (or click the last pole again) to finish. Then use the Drop " +
     "tool from each pole to its home.",
+  orgId: DEV_ORG_ID,
   mapCenter: [LNG + 0.0002, LAT0 - SPAN_DEG * 2.5],
   mapZoom: 17,
   preloadedElements,

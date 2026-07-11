@@ -11,6 +11,7 @@ import { nearestPointElement } from "@/lib/geometry";
 import { BASEMAP_LAYER_STYLES, loadBasemapLayers } from "@/lib/basemap";
 import type { BasemapLayerName } from "@/lib/basemap";
 import { findBasemapFeature } from "@/lib/basemap-workspace";
+import { authFetch } from "@/lib/api-client";
 
 const SNAP_FT = 60;
 
@@ -141,14 +142,9 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
 
     async function loadBasemapData() {
       try {
-        // These routes are auth-gated (tenant-scoped parcel/address data).
-        // Login returns the JWT in the response body, stored client-side —
-        // there is no session cookie, so it must be attached explicitly.
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        const authHeaders: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
         const [parcelsRes, addressesRes] = await Promise.all([
-          fetch(`/api/projects/${project.id}/layers/parcels`, { headers: authHeaders }),
-          fetch(`/api/projects/${project.id}/layers/addresses`, { headers: authHeaders }),
+          authFetch(`/api/projects/${project.id}/layers/parcels`),
+          authFetch(`/api/projects/${project.id}/layers/addresses`),
         ]);
         if (!parcelsRes.ok || !addressesRes.ok) {
           throw new Error("Failed to load parcel/address basemap data");
@@ -461,8 +457,17 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
-  // basemap switching
+  // Flag to skip redundant setStyle call on initial mount.
+  // The map constructor already sets the style (line ~184); firing
+  // setStyle again with the identical style on the first render causes
+  // a "Style is not done loading" warning loop that stalls style loading.
+  const isFirstRun = useRef(true);
+
   useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
     const map = mapRef.current;
     if (!map) return;
     map.setStyle(BASEMAP_STYLES[basemap]);

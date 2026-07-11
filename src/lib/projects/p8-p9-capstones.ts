@@ -1,4 +1,5 @@
 import type { NetworkElement, ProjectFixture } from "../types";
+import { DEV_ORG_ID } from "@/lib/env";
 
 // P8 — Westside Village Full HLD
 // Method selection, budget-aware design. Requires OWN passed basemap.
@@ -40,6 +41,7 @@ export const p8Westside: ProjectFixture = {
   ],
   mapCenter: [LNG, LAT0 - 0.002],
   mapZoom: 16,
+  orgId: DEV_ORG_ID,
   preloadedElements: [
     { id: "p8_co", type: "co", locked: true, label: "CO", position: [LNG - 0.003, LAT0 + 0.004], attributes: { name: "Westside CO" } },
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n): NetworkElement => ({
@@ -101,6 +103,7 @@ export const p9Riverside: ProjectFixture = {
   ],
   mapCenter: [-97.68, 30.32],
   mapZoom: 15,
+  orgId: DEV_ORG_ID,
   preloadedElements: [
     { id: "p9_co", type: "co", locked: true, label: "CO", position: [-97.685, 30.325], attributes: { name: "Riverside CO" } },
   ],

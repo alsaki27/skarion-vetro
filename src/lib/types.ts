@@ -267,8 +267,8 @@ export interface ProjectFixture {
   referenceBasemap?: Record<string, GeoJSON.FeatureCollection>;
   /** Optional linked basemap fixture id for real parcel/address layers */
   basemapId?: string;
-  /** Owning organization for tenant scoping */
-  orgId?: string;
+  /** Organization that owns this project fixture (required for tenant-scoped routes) */
+  orgId: string;
   /** Parcel IDs considered "in service" for trespass and coverage checks (Parkside Georgetown) */
   serviceableParcelIds?: string[];
 }

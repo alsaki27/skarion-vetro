@@ -1,4 +1,5 @@
 import type { NetworkElement, ProjectFixture } from "../types";
+import { DEV_ORG_ID } from "@/lib/env";
 
 // P4 — Split Architecture Lab
 // The same street designed TWICE: once centralized (splitters at FDH), once distributed (cascaded splitters on poles).
@@ -83,6 +84,7 @@ export const p4SplitLab: ProjectFixture = {
     "drops connect to the nearest pole's splitter.",
   mapCenter: [LNG + SPAN * 0.3, LAT0 - SPAN * 3],
   mapZoom: 16,
+  orgId: DEV_ORG_ID,
   preloadedElements,
   requirements: [
     { id: "req_splitters", label: "Splitters placed and connected", checkId: "split_ratio_valid" },

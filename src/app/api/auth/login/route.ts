@@ -3,6 +3,7 @@ import { getDb, schema } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { verifyPassword, createAccessToken, createRefreshToken } from "@/lib/auth";
 import { isDevMode } from "@/lib/auth";
+import { DEV_ORG_ID } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { writeAudit } from "@/lib/audit";
 import crypto from "crypto";
@@ -33,12 +34,12 @@ export async function POST(request: NextRequest) {
       if (email === "dev@skarion.com" && password === "dev") {
         const tokenFamily = crypto.randomUUID();
         const accessToken = await createAccessToken({
-          sub: "00000000-0000-0000-0000-000000000001",
+          sub: DEV_ORG_ID,
           email: "dev@skarion.com",
-          org_id: "00000000-0000-0000-0000-000000000001",
+          org_id: DEV_ORG_ID,
           role: "admin",
         });
-        const refreshToken = await createRefreshToken("00000000-0000-0000-0000-000000000001", tokenFamily);
+        const refreshToken = await createRefreshToken(DEV_ORG_ID, tokenFamily);
 
         const response = NextResponse.json({
           token: accessToken,

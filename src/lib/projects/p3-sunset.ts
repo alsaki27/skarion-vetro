@@ -1,4 +1,5 @@
 import type { NetworkElement, ProjectFixture } from "../types";
+import { DEV_ORG_ID } from "@/lib/env";
 
 // P3 — Sunset Ridge Aerial
 // Suburban loop aerial design with distributed split architecture.
@@ -99,6 +100,7 @@ export const p3SunsetRidge: ProjectFixture = {
     "Then use the Drop tool from each pole to its home.",
   mapCenter: [LNG + SPAN * 0.5, LAT0 - SPAN * 2.5],
   mapZoom: 16,
+  orgId: DEV_ORG_ID,
   preloadedElements,
   requirements: [
     { id: "req_cable", label: "Mainline cable CO→P5 through all Main St poles", checkId: "mainline" },

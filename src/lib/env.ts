@@ -29,3 +29,6 @@ export function isProduction(): boolean {
 export function isDevMode(): boolean {
   return !process.env.JWT_SECRET || process.env.JWT_SECRET === "dev-secret-change-me-before-prod--min-32-bytes";
 }
+
+/** Dev-mode org id used by the login route and all fixture-based projects. */
+export const DEV_ORG_ID = "00000000-0000-0000-0000-000000000001";

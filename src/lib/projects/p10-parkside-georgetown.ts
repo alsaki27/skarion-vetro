@@ -1,5 +1,6 @@
 import type { NetworkElement, ProjectFixture } from "../types";
 import { p10Premises } from "./p10-premises-generated";
+import { DEV_ORG_ID } from "@/lib/env";
 
 const CENTER_LNG = -97.7653;
 const CENTER_LAT = 30.6048;
@@ -114,6 +115,6 @@ export const p10ParksideGeorgetown: ProjectFixture = {
   // Matches the dev-login org (src/app/api/auth/login/route.ts). The
   // parcel/address layer routes 404 without an org match — every fixture
   // that serves a real basemap must set this or its layers are unreachable.
-  orgId: "00000000-0000-0000-0000-000000000001",
+  orgId: DEV_ORG_ID,
   serviceableParcelIds,
 };

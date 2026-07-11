@@ -1,4 +1,5 @@
 import type { NetworkElement, ProjectFixture } from "../types";
+import { DEV_ORG_ID } from "@/lib/env";
 
 // P2 — Oakwood Underground
 // Suburban underground street with conduit, handholes, flowerpots, containment.
@@ -97,6 +98,7 @@ export const p2OakwoodUnderground: ProjectFixture = {
     "Finally use the Drop tool from each MST to its building.",
   mapCenter: [LNG + SPAN_DEG, LAT0 - SPAN_DEG * 0.4],
   mapZoom: 16,
+  orgId: DEV_ORG_ID,
   preloadedElements,
   requirements: [
     { id: "req_conduit", label: "Conduit from CO through all handholes", checkId: "conduit_connectivity" },

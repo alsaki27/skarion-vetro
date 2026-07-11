@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { authFetch } from "@/lib/api-client";
 
 interface ImportWizardProps {
   projectId: string;
@@ -22,7 +23,7 @@ export function ImportWizard({ projectId, onClose }: ImportWizardProps) {
     setFile(f);
     const form = new FormData();
     form.append("file", f);
-    const res = await fetch("/api/imports/upload", { method: "POST", body: form });
+    const res = await authFetch("/api/imports/upload", { method: "POST", body: form });
     const data = await res.json();
     if (res.ok) {
       setUploadResult(data);
@@ -34,7 +35,7 @@ export function ImportWizard({ projectId, onClose }: ImportWizardProps) {
 
   const handleCommit = useCallback(async () => {
     setCommitting(true);
-    const res = await fetch("/api/imports", {
+    const res = await authFetch("/api/imports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

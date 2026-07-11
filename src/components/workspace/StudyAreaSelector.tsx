@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { authFetch } from "@/lib/api-client";
 
 const US_STATES = [
   { fips: "48", abbrev: "TX", name: "Texas" },
@@ -23,7 +24,7 @@ export function StudyAreaSelector({ onSelect }: { onSelect?: (area: Record<strin
   const loadCounties = () => {
     if (!stateFips) return;
     setLoading(true);
-    fetch(`/api/census/counties?stateFips=${stateFips}`)
+    authFetch(`/api/census/counties?stateFips=${stateFips}`)
       .then((r) => r.json())
       .then((data) => {
         setCounties(data.counties ?? []);
@@ -45,7 +46,7 @@ export function StudyAreaSelector({ onSelect }: { onSelect?: (area: Record<strin
       bbox: [-98.5, 29.5, -96.5, 31.5], // placeholder bbox
       geometry: "POLYGON((-98.5 29.5,-96.5 29.5,-96.5 31.5,-98.5 31.5,-98.5 29.5))",
     };
-    fetch("/api/study-areas", {
+    authFetch("/api/study-areas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

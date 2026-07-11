@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { loadAddresses, loadParcels } from "@/lib/basemap-loader";
 import { runSingleCheck } from "@/lib/grading/engine";
 import { isPointElement } from "@/lib/types";
+import { DEV_ORG_ID } from "@/lib/env";
 import { PROJECTS } from "./index";
 import { p10ParksideGeorgetown } from "./p10-parkside-georgetown";
 
@@ -158,8 +159,6 @@ describe("Parkside Georgetown project fixture", () => {
     // discovered by driving the app end-to-end in a browser, not by unit
     // tests, since existing tests call the check registry directly and
     // never exercise the HTTP layer/auth path.
-    expect(p10ParksideGeorgetown.orgId).toBe(
-      "00000000-0000-0000-0000-000000000001",
-    );
+    expect(p10ParksideGeorgetown.orgId).toBe(DEV_ORG_ID);
   });
 });
