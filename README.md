@@ -163,6 +163,12 @@ Prototype pipeline for converting real survey DWG files into GeoJSON basemap lay
 npm run dev          # Start Next.js dev server (port 3000)
 npm run build        # Production build
 npm run lint         # ESLint
+npm run typecheck    # TypeScript type checking (tsc --noEmit)
+npm run test         # Run all unit + integration tests (Vitest)
+npm run test:unit    # Run unit tests only
+npm run test:integration # Run integration tests only
+npm run test:e2e     # Run Playwright end-to-end tests
+npm run verify       # Full gate: lint → typecheck → unit test → build
 npm run db:generate  # Generate Drizzle migrations
 npm run db:push      # Push schema to database
 npm run db:migrate   # Apply migrations
@@ -192,8 +198,8 @@ Requires a Cloudflare account and `NEON_DATABASE_URL` + `JWT_SECRET` configured.
 
 ### High-impact areas
 
-1. **Add tests** — the codebase has zero tests. Start with unit tests for the grading engine (`src/lib/grading/engine.ts`), then add integration tests for API routes.
-2. **Auth endpoints** — implement `/api/auth/refresh` (token refresh) and `/api/auth/logout`. The `createRefreshToken` function exists in `src/lib/auth/tokens.ts` but has no consuming route.
+1. **Auth endpoints** — implement `/api/auth/refresh` (token refresh) and `/api/auth/logout`. The `createRefreshToken` function exists in `src/lib/auth/tokens.ts` but has no consuming route.
+2. **Integration tests** — add API integration tests for grading, designs, and project endpoints. The test infrastructure (Vitest, Playwright) is in place.
 3. **Input validation** — `zod` is already a dependency but unused. Add schema validation to every API route (`src/app/api/*/route.ts`).
 4. **Error boundaries** — add React error boundaries around `MapCanvas` and `SidePanel` so a component crash doesn't take down the page.
 5. **In-memory invite tokens** — `INVITE_TOKENS` in the auth routes is a module-level `Map`. Move to a database-backed table for production.
