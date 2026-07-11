@@ -24,6 +24,12 @@ interface DesignState {
   selectedId: string | null;
   tool: Tool;
   basemap: Basemap;
+  /** Whether CAD basemap layers (EOP/CL/RW/Parcel) are shown */
+  showBasemapCanvas: boolean;
+  /** Per-layer visibility */
+  visibleBasemapLayers: Record<string, boolean>;
+  /** LLD mode (splice table): unlocked after HLD gate pass */
+  lldMode: boolean;
   /** In-progress line draw: vertices placed so far */
   draftPath: LngLat[];
   draftStartElementId: string | null;
@@ -34,6 +40,9 @@ interface DesignState {
 
   setTool: (t: Tool) => void;
   setBasemap: (b: Basemap) => void;
+  setBasemapCanvasVisible: (v: boolean) => void;
+  toggleBasemapLayer: (layer: string) => void;
+  setLldMode: (v: boolean) => void;
   select: (id: string | null) => void;
   loadElements: (els: NetworkElement[]) => void;
   addPoint: (type: PointElementType, position: LngLat) => string;
@@ -49,6 +58,12 @@ interface DesignState {
   updateAttributes: (id: string, attrs: Record<string, unknown>) => void;
   moveElement: (id: string, position: LngLat) => void;
   deleteElement: (id: string) => void;
+  /** Add a point element hosted inside a container ( containment ) */
+  hostInContainer: (containerId: string, type: PointElementType, position: LngLat) => string;
+  /** Remove a hosted element from its container */
+  unhostElement: (hostedId: string) => void;
+  /** Get all elements hosted inside a given container id */
+  hostedBy: (containerId: string) => NetworkElement[];
   setGrading: (g: GradingResult | null) => void;
   undo: () => void;
   redo: () => void;
@@ -71,9 +86,14 @@ const DEFAULT_LINE_ATTRS: Record<string, Record<string, unknown>> = {
 
 const DEFAULT_POINT_ATTRS: Partial<Record<PointElementType, Record<string, unknown>>> = {
   pole: { owner: "Utility", height_ft: 35, attachment_count: 0 },
+  handhole: { catalog_key: "handhole_17x30", size: "17x30x24", depth_in: 30 },
+  flowerpot: { catalog_key: "flowerpot_std", size: "10in_round" },
+  vault: { catalog_key: "vault_4x4", size: "4x4", depth_in: 48 },
   splitter: { ratio: "1:8", stage: 1 },
-  fdh_cabinet: { port_count: 432 },
-  splice_closure: { capacity: 96 },
+  mst: { catalog_key: "mst_6port", port_count: 6 },
+  fdh_cabinet: { catalog_key: "fdh_288", port_count: 288 },
+  splice_closure: { catalog_key: "splice_closure_96", capacity: 96 },
+  slack_loop: { catalog_key: "slack_loop", loop_ft: 10 },
 };
 
 export const useDesignStore = create<DesignState>((set, get) => ({
@@ -81,6 +101,9 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   selectedId: null,
   tool: "select",
   basemap: "satellite",
+  showBasemapCanvas: false,
+  visibleBasemapLayers: { EOP: true, CL: true, RW: true, PARCEL: true, BOUNDARY: true },
+  lldMode: false,
   draftPath: [],
   draftStartElementId: null,
   grading: null,
@@ -89,6 +112,12 @@ export const useDesignStore = create<DesignState>((set, get) => ({
 
   setTool: (tool) => set({ tool, draftPath: [], draftStartElementId: null }),
   setBasemap: (basemap) => set({ basemap }),
+  setBasemapCanvasVisible: (v) => set({ showBasemapCanvas: v }),
+  toggleBasemapLayer: (layer) =>
+    set((s) => ({
+      visibleBasemapLayers: { ...s.visibleBasemapLayers, [layer]: !s.visibleBasemapLayers[layer] },
+    })),
+  setLldMode: (lldMode) => set({ lldMode }),
   select: (selectedId) => set({ selectedId }),
 
   loadElements: (els) =>
@@ -178,12 +207,20 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       const el = s.elements[id];
       if (!el || el.locked) return s;
       const elements = { ...s.elements };
+      // If this is a container, also delete all hosted contents
+      const hostedIds = Object.values(elements)
+        .filter((e) => "parent_container_id" in e && e.parent_container_id === id)
+        .map((e) => e.id);
+      for (const hid of hostedIds) {
+        delete elements[hid];
+      }
       delete elements[id];
       // also remove lines attached to a deleted point element
+      const allDeletedIds = new Set([id, ...hostedIds]);
       for (const other of Object.values(elements)) {
         if (
           "path" in other &&
-          (other.startElementId === id || other.endElementId === id)
+          (allDeletedIds.has(other.startElementId ?? "") || allDeletedIds.has(other.endElementId ?? ""))
         ) {
           delete elements[other.id];
         }
@@ -194,6 +231,47 @@ export const useDesignStore = create<DesignState>((set, get) => ({
         selectedId: s.selectedId === id ? null : s.selectedId,
       };
     }),
+
+  hostInContainer: (containerId, type, position) => {
+    const id = makeId(type);
+    set((s) => {
+      const container = s.elements[containerId];
+      if (!container || !("position" in container)) return s;
+      return {
+        ...pushHistory(s),
+        elements: {
+          ...s.elements,
+          [id]: {
+            id,
+            type,
+            position,
+            parent_container_id: containerId,
+            attributes: { ...(DEFAULT_POINT_ATTRS[type] ?? {}) },
+          },
+        },
+        selectedId: id,
+      };
+    });
+    return id;
+  },
+
+  unhostElement: (hostedId) =>
+    set((s) => {
+      const el = s.elements[hostedId];
+      if (!el || !("parent_container_id" in el)) return s;
+      return {
+        ...pushHistory(s),
+        elements: {
+          ...s.elements,
+          [hostedId]: { ...el, parent_container_id: undefined },
+        },
+      };
+    }),
+
+  hostedBy: (containerId) =>
+    Object.values(get().elements).filter(
+      (e) => "parent_container_id" in e && e.parent_container_id === containerId,
+    ),
 
   setGrading: (grading) => set({ grading }),
 
