@@ -1,13 +1,16 @@
 "use client";
 
 import { getDefaultStyle, type LayerStyle } from "@/lib/styles";
+import { DEFAULT_PREMISE_STYLE, DEFAULT_ROUTE_STYLES, type SafeStyle } from "@/lib/style-schema";
 
 interface LegendProps {
   activeLayerIds: string[];
 }
 
 export default function Legend({ activeLayerIds }: LegendProps) {
-  const styles = activeLayerIds.map((id) => getDefaultStyle(id)).filter(Boolean) as LayerStyle[];
+  const legacyStyles = activeLayerIds.map((id) => getDefaultStyle(id)).filter(Boolean) as LayerStyle[];
+  const safeStyles: SafeStyle[] = [DEFAULT_PREMISE_STYLE, ...DEFAULT_ROUTE_STYLES];
+  const styles = [...legacyStyles, ...safeStyles];
 
   if (styles.length === 0) return null;
 
