@@ -8,18 +8,17 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthFromRequest(request);
 
-    // Dev mode: any authenticated user can create invites
     if (!auth) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      return NextResponse.json({ error: "Authentication required", error_code: "UNAUTHORIZED" }, { status: 401 });
     }
 
     if (auth.role !== "admin" && auth.role !== "instructor") {
-      return NextResponse.json({ error: "Only admin and instructor roles can create invites" }, { status: 403 });
+      return NextResponse.json({ error: "Insufficient permissions", error_code: "FORBIDDEN" }, { status: 403 });
     }
 
-    const { email, role, orgId } = await request.json();
-    if (!email || !role || !orgId) {
-      return NextResponse.json({ error: "email, role, and orgId required" }, { status: 400 });
+    const { email, role } = await request.json();
+    if (!email || !role) {
+      return NextResponse.json({ error: "email and role required", error_code: "VALIDATION_ERROR" }, { status: 400 });
     }
 
     if (role !== "student" && role !== "instructor" && role !== "admin") {
@@ -29,7 +28,8 @@ export async function POST(request: NextRequest) {
     const inviteToken = crypto.randomUUID();
     const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
-    INVITE_TOKENS.set(inviteToken, { email, orgId, role, expiresAt });
+    // org_id is derived from authenticated context, never from caller
+    INVITE_TOKENS.set(inviteToken, { email, orgId: auth.org_id, role, expiresAt });
 
     return NextResponse.json({
       invite_token: inviteToken,

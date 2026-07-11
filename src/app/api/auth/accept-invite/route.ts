@@ -9,17 +9,17 @@ export async function POST(request: NextRequest) {
   try {
     const { invite_token, password, name } = await request.json();
     if (!invite_token || !password) {
-      return NextResponse.json({ error: "invite_token and password required" }, { status: 400 });
+      return NextResponse.json({ error: "invite_token and password required", error_code: "VALIDATION_ERROR" }, { status: 400 });
     }
 
     const invite = INVITE_TOKENS.get(invite_token);
     if (!invite) {
-      return NextResponse.json({ error: "Invalid or expired invite token" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid or expired invite token", error_code: "INVALID_INVITE" }, { status: 400 });
     }
 
     if (Date.now() > invite.expiresAt) {
       INVITE_TOKENS.delete(invite_token);
-      return NextResponse.json({ error: "Invite token expired" }, { status: 400 });
+      return NextResponse.json({ error: "Invite token expired", error_code: "INVITE_EXPIRED" }, { status: 400 });
     }
 
     const db = getDb();

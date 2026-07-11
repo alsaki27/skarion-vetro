@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
     if (!email || !password) {
-      return NextResponse.json({ error: "email and password required" }, { status: 400 });
+      return NextResponse.json({ error: "email and password required", error_code: "VALIDATION_ERROR" }, { status: 400 });
     }
 
     const db = getDb();
@@ -26,18 +26,18 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ token, user: { email: "dev@skarion.com", name: "Dev User", role: "admin" } });
       }
-      return NextResponse.json({ error: "Dev mode: use dev@skarion.com / dev. Set DATABASE_URL and JWT_SECRET for production auth." }, { status: 401 });
+      return NextResponse.json({ error: "Invalid email or password", error_code: "INVALID_CREDENTIALS" }, { status: 401 });
     }
 
     // Production: authenticate against database
     const [user] = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
     if (!user || !user.passwordHash) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid email or password", error_code: "INVALID_CREDENTIALS" }, { status: 401 });
     }
 
     const valid = await verifyPassword(user.passwordHash, password);
     if (!valid) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid email or password", error_code: "INVALID_CREDENTIALS" }, { status: 401 });
     }
 
     // Get org membership — use the first active membership
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     ).limit(1);
 
     if (!member) {
-      return NextResponse.json({ error: "No active organization membership found" }, { status: 403 });
+      return NextResponse.json({ error: "No active organization membership found", error_code: "FORBIDDEN" }, { status: 403 });
     }
 
     const token = await createAccessToken({

@@ -149,24 +149,4 @@ app.get("/api/progress/:userId", async (c) => {
   }
 });
 
-app.post("/api/dev/seed", async (c) => {
-  // Guard: do not run in production or when a real JWT_SECRET is configured
-  const secret = process.env.JWT_SECRET;
-  if (process.env.NODE_ENV === "production" || (secret && secret !== "dev-secret-change-me-before-prod--min-32-bytes")) {
-    return c.json({ error: "Not available in production" }, 403);
-  }
-
-  try {
-    const { org_id } = c.var.auth;
-    const db = sql();
-    await db`INSERT INTO organizations (id, name, slug, plan, status) VALUES (${org_id}, 'Skarion', 'skarion', 'pro', 'active') ON CONFLICT (slug) DO NOTHING`;
-    await db`INSERT INTO users (id, email, name) VALUES (${c.var.auth.sub}, 'dev@skarion.com', 'Dev User') ON CONFLICT (email) DO NOTHING`;
-    await db`INSERT INTO org_members (org_id, user_id, role) VALUES (${org_id}, ${c.var.auth.sub}, 'student') ON CONFLICT (org_id, user_id) DO NOTHING`;
-    return c.json({ seeded: true, orgId: org_id, userId: c.var.auth.sub });
-  } catch (err) {
-    console.error("POST /api/dev/seed failed", err);
-    return c.json({ error: "Internal server error" }, 500);
-  }
-});
-
 export default app;

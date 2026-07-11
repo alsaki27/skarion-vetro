@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getAuthFromRequest } from "@/lib/auth";
 import { PROJECTS } from "@/lib/projects";
 
-// Only expose fields safe for students — never grading answer keys
 const PUBLIC_PROJECT_FIELDS = [
   "id", "title", "difficulty", "environment", "splitArchitecture",
   "mapCenter", "mapZoom", "preloadedElements", "requirements",
@@ -9,7 +9,12 @@ const PUBLIC_PROJECT_FIELDS = [
   "tasks", "tip", "passThreshold",
 ] as const;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await getAuthFromRequest(request);
+  if (!auth) {
+    return NextResponse.json({ error: "Authentication required", error_code: "UNAUTHORIZED" }, { status: 401 });
+  }
+
   const projects = Object.values(PROJECTS).map((p) => {
     const sanitized: Record<string, unknown> = {};
     for (const key of PUBLIC_PROJECT_FIELDS) {
