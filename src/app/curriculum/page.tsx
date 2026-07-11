@@ -13,6 +13,7 @@ const DEFERRED_PROJECTS = [
   { id: "p7-parkview", title: "Project 7: Parkview MDU", env: "Mixed · Advanced" },
   { id: "p8-westside", title: "Project 8: Westside Village HLD", env: "Mixed · Capstone" },
   { id: "p9-riverside", title: "Project 9: Riverside Crossing", env: "Mixed · Capstone" },
+  { id: "p10-parkside-georgetown", title: "Project 10: Parkside Georgetown", env: "Mixed · Basemap" },
 ];
 
 export default function CurriculumPage() {

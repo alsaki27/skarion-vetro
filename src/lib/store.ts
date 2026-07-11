@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 import type {
+  BasemapDataset,
+  BasemapFeatureSelection,
   GradingResult,
   LngLat,
   NetworkElement,
@@ -29,6 +31,10 @@ interface DesignState {
   showBasemapCanvas: boolean;
   /** Per-layer visibility */
   visibleBasemapLayers: Record<string, boolean>;
+  /** Loaded parcel/address basemap data for workspace projects */
+  basemapData: BasemapDataset | null;
+  /** Selected parcel/address feature, if any */
+  selectedBasemapFeature: BasemapFeatureSelection | null;
   /** LLD mode (splice table): unlocked after HLD gate pass */
   lldMode: boolean;
   /** In-progress line draw: vertices placed so far */
@@ -44,6 +50,8 @@ interface DesignState {
   setBasemap: (b: Basemap) => void;
   setBasemapCanvasVisible: (v: boolean) => void;
   toggleBasemapLayer: (layer: string) => void;
+  setBasemapData: (data: BasemapDataset | null) => void;
+  selectBasemapFeature: (selection: BasemapFeatureSelection | null) => void;
   setLldMode: (v: boolean) => void;
   select: (id: string | null) => void;
   toggleSelection: (id: string) => void;
@@ -105,6 +113,8 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   basemap: "satellite",
   showBasemapCanvas: false,
   visibleBasemapLayers: { EOP: true, CL: true, RW: true, PARCEL: true, BOUNDARY: true },
+  basemapData: null,
+  selectedBasemapFeature: null,
   lldMode: false,
   draftPath: [],
   draftStartElementId: null,
@@ -121,8 +131,19 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     set((s) => ({
       visibleBasemapLayers: { ...s.visibleBasemapLayers, [layer]: !s.visibleBasemapLayers[layer] },
     })),
+  setBasemapData: (basemapData) => set({ basemapData }),
+  selectBasemapFeature: (selectedBasemapFeature) =>
+    set({
+      selectedBasemapFeature,
+      selectedId: null,
+      selectedIds: new Set(),
+    }),
   setLldMode: (lldMode) => set({ lldMode }),
-  select: (selectedId) => set({ selectedId, selectedIds: selectedId ? new Set([selectedId]) : new Set() }),
+  select: (selectedId) => set({
+    selectedId,
+    selectedIds: selectedId ? new Set([selectedId]) : new Set(),
+    selectedBasemapFeature: null,
+  }),
 
   toggleSelection: (id) => set((s) => {
     const next = new Set(s.selectedIds);
@@ -130,7 +151,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     return { selectedIds: next, selectedId: id };
   }),
 
-  clearSelection: () => set({ selectedId: null, selectedIds: new Set() }),
+  clearSelection: () => set({ selectedId: null, selectedIds: new Set(), selectedBasemapFeature: null }),
 
   loadElements: (els) =>
     set({
@@ -140,6 +161,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       grading: null,
       selectedId: null,
       selectedIds: new Set(),
+      selectedBasemapFeature: null,
     }),
 
   addPoint: (type, position) => {

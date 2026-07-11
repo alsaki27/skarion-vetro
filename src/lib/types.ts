@@ -259,6 +259,25 @@ export interface ProjectFixture {
   orgId?: string;
 }
 
+export type BasemapLayerKind = "parcels" | "addresses";
+
+export interface BasemapFeature<TProps extends Record<string, unknown> = Record<string, unknown>> {
+  id: string;
+  type: "Feature";
+  geometry: GeoJSON.Geometry;
+  properties: TProps;
+}
+
+export interface BasemapFeatureSelection<TProps extends Record<string, unknown> = Record<string, unknown>> {
+  layer: BasemapLayerKind;
+  feature: BasemapFeature<TProps>;
+}
+
+export interface BasemapDataset {
+  parcels: BasemapFeature[];
+  addresses: BasemapFeature[];
+}
+
 // ---------------------------------------------------------------------------
 // Grading types (plan §3 — check registry shared by grader and AI tutor)
 

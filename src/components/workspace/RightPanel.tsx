@@ -1,30 +1,50 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useDesignStore } from "@/lib/store";
 import { isPointElement, isLineElement, isContainerType, HARDWARE_CATALOG } from "@/lib/types";
-import type { CheckResult } from "@/lib/types";
+import type {
+  BasemapDataset,
+  BasemapFeature,
+  BasemapFeatureSelection,
+  BasemapLayerKind,
+  CheckResult,
+} from "@/lib/types";
+import {
+  featureLabel,
+  featureSummary,
+  getBasemapSelectionLabel,
+  getRelatedAddressFeatures,
+  getRelatedParcelFeature,
+  isAddressFeature,
+  isParcelFeature,
+} from "@/lib/basemap-workspace";
 
 export function RightPanel() {
   const selectedId = useDesignStore((s) => s.selectedId);
   const elements = useDesignStore((s) => s.elements);
   const grading = useDesignStore((s) => s.grading);
+  const basemapData = useDesignStore((s) => s.basemapData);
+  const selectedBasemapFeature = useDesignStore((s) => s.selectedBasemapFeature);
+  const selectBasemapFeature = useDesignStore((s) => s.selectBasemapFeature);
   const [activeTab, setActiveTab] = useDesignStore((s) => [s.inspectorTab, s.setInspectorTab]);
 
   const selected = selectedId ? elements[selectedId] : null;
+  const selectedBasemap = selectedBasemapFeature?.feature ?? null;
   const isPoint = selected ? isPointElement(selected) : false;
   const isLine = selected ? isLineElement(selected) : false;
   const isContainer = isPoint && selected ? isContainerType(selected.type as import("@/lib/types").PointElementType) : false;
+  const isBasemapSelection = Boolean(selectedBasemapFeature && selectedBasemap);
 
   // Compute grading issues for this element
   const elementChecks: CheckResult[] = useMemo(() => {
-    if (!grading || !selected) return [];
+    if (!grading || !selected || isBasemapSelection) return [];
     return grading.checks.filter((c) => c.elementIds?.includes(selected.id));
-  }, [grading, selected]);
+  }, [grading, selected, isBasemapSelection]);
 
   // Compute relationships from grading engine graph
   const relationships = useMemo(() => {
-    if (!selected) return [];
+    if (!selected || isBasemapSelection) return [];
     const all = Object.values(elements);
     const connected: { id: string; type: string; relation: string }[] = [];
     if (isPointElement(selected)) {
@@ -60,9 +80,19 @@ export function RightPanel() {
       if (end) connected.push({ id: end.id, type: end.type, relation: "end" });
     }
     return connected;
-  }, [elements, selected, isContainer]);
+  }, [elements, selected, isBasemapSelection]);
 
   const tabs: { id: string; label: string; badge?: number }[] = useMemo(() => {
+    if (isBasemapSelection && selectedBasemapFeature && selectedBasemap) {
+      const baseTabs: { id: string; label: string; badge?: number }[] = [
+        { id: "attributes", label: "Attributes" },
+        { id: "source", label: "Source" },
+      ];
+      if (isAddressFeature(selectedBasemap) || isParcelFeature(selectedBasemap)) {
+        baseTabs.push({ id: "relationships", label: "Relationships" });
+      }
+      return baseTabs;
+    }
     if (!selected) return [{ id: "attributes", label: "Attributes" }];
     const base: { id: string; label: string; badge?: number }[] = [
       { id: "attributes", label: "Attributes" },
@@ -76,9 +106,25 @@ export function RightPanel() {
     base.push({ id: "history", label: "History" });
     base.push({ id: "notes", label: "Notes" });
     return base;
-  }, [selected, isPoint, isLine, isContainer, relationships.length, elementChecks.length]);
+  }, [selected, selectedBasemap, isBasemapSelection, isPoint, isLine, isContainer, relationships.length, elementChecks.length, selectedBasemapFeature]);
 
-  if (!selected) {
+  const title = isBasemapSelection && selectedBasemapFeature && selectedBasemap
+    ? `${selectedBasemapFeature.layer.slice(0, -1)} ${featureLabel(selectedBasemap)}`
+    : selected
+      ? `${selected.type} ${selected.id.slice(0, 8)}`
+      : "";
+
+  const subtitle = isBasemapSelection && selectedBasemapFeature && selectedBasemap
+    ? featureSummary(selectedBasemap) || getBasemapSelectionLabel(selectedBasemapFeature)
+    : "";
+
+  useEffect(() => {
+    if (!tabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab(tabs[0]?.id ?? "attributes");
+    }
+  }, [tabs, activeTab, setActiveTab]);
+
+  if (!selected && !selectedBasemapFeature) {
     return (
       <div className="p-3 text-xs text-zinc-500">
         Select a feature on the map to inspect its properties.
@@ -89,7 +135,7 @@ export function RightPanel() {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-zinc-800 px-2 py-1 text-xs font-medium text-zinc-300">
-        {selected.type} <span className="text-zinc-500">{selected.id.slice(0, 8)}</span>
+        {title} {subtitle ? <span className="text-zinc-500">{subtitle}</span> : null}
       </div>
       <div className="flex border-b border-zinc-800 overflow-x-auto">
         {tabs.map((t) => (
@@ -110,15 +156,32 @@ export function RightPanel() {
         ))}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
-        {activeTab === "attributes" && <AttributesTab element={selected} />}
-        {activeTab === "source" && <SourceTab element={selected} />}
-        {activeTab === "relationships" && <RelationshipsTab relationships={relationships} />}
-        {activeTab === "containment" && isContainer && isPointElement(selected) && <ContainmentTab element={selected} />}
-        {activeTab === "connectivity" && isPoint && isPointElement(selected) && <ConnectivityTab element={selected} />}
-        {activeTab === "capacity" && (isContainer || isLine) && <CapacityTab element={selected} />}
-        {activeTab === "validation" && <ValidationTab checks={elementChecks} />}
-        {activeTab === "history" && <HistoryTab elementId={selected.id} />}
-        {activeTab === "notes" && <NotesTab elementId={selected.id} />}
+        {isBasemapSelection && selectedBasemap && selectedBasemapFeature ? (
+          <>
+            {activeTab === "attributes" && <BasemapAttributesTab feature={selectedBasemap} />}
+            {activeTab === "source" && <BasemapSourceTab feature={selectedBasemap} />}
+            {activeTab === "relationships" && (
+              <BasemapRelationshipsTab
+                feature={selectedBasemap}
+                layer={selectedBasemapFeature.layer}
+                basemapData={basemapData}
+                onSelect={selectBasemapFeature}
+              />
+            )}
+          </>
+        ) : (
+          <>
+            {activeTab === "attributes" && (selected ? <AttributesTab element={selected} /> : null)}
+            {activeTab === "source" && (selected ? <SourceTab element={selected} /> : null)}
+            {activeTab === "relationships" && <RelationshipsTab relationships={relationships} />}
+            {activeTab === "containment" && isContainer && selected && isPointElement(selected) ? <ContainmentTab element={selected} /> : null}
+            {activeTab === "connectivity" && isPoint && selected && isPointElement(selected) ? <ConnectivityTab element={selected} /> : null}
+            {activeTab === "capacity" && (isContainer || isLine) && selected ? <CapacityTab element={selected} /> : null}
+            {activeTab === "validation" && <ValidationTab checks={elementChecks} />}
+            {activeTab === "history" && (selected ? <HistoryTab elementId={selected.id} /> : null)}
+            {activeTab === "notes" && (selected ? <NotesTab elementId={selected.id} /> : null)}
+          </>
+        )}
       </div>
     </div>
   );
@@ -158,6 +221,126 @@ function AttributesTab({ element }: { element: import("@/lib/types").NetworkElem
       </div>
     </div>
   );
+}
+
+function BasemapAttributesTab({ feature }: { feature: BasemapFeature }) {
+  const entries = Object.entries(feature.properties);
+  return (
+    <div className="space-y-1">
+      <div className="grid grid-cols-[1fr_1fr] gap-1 text-xs">
+        <div className="text-zinc-500">id</div>
+        <div className="text-zinc-300">{feature.id}</div>
+        <div className="text-zinc-500">geometry</div>
+        <div className="text-zinc-300">{feature.geometry.type}</div>
+        <div className="text-zinc-500">label</div>
+        <div className="text-zinc-300">{featureLabel(feature)}</div>
+        <div className="text-zinc-500">summary</div>
+        <div className="text-zinc-300">{featureSummary(feature) || "—"}</div>
+        {entries.map(([key, value]) => (
+          <div key={key} className="contents">
+            <div className="text-zinc-500">{key}</div>
+            <div className="text-zinc-300 break-words">{String(value)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BasemapSourceTab({ feature }: { feature: BasemapFeature }) {
+  const props = feature.properties as Record<string, unknown>;
+  return (
+    <div className="space-y-1 text-xs">
+      <div className="grid grid-cols-[1fr_1fr] gap-1">
+        <div className="text-zinc-500">Source</div>
+        <div className="text-zinc-300">{String(props.source_id ?? "—")}</div>
+        <div className="text-zinc-500">Last Update</div>
+        <div className="text-zinc-300">{String(props.source_last_update ?? "—")}</div>
+        <div className="text-zinc-500">Layer</div>
+        <div className="text-zinc-300">{isAddressFeature(feature) ? "Addresses" : "Parcels"}</div>
+        {isAddressFeature(feature) && (
+          <>
+            <div className="text-zinc-500">Serviceable</div>
+            <div className="text-zinc-300">{String(feature.properties.serviceable ?? false)}</div>
+            <div className="text-zinc-500">Status</div>
+            <div className="text-zinc-300">{feature.properties.status}</div>
+          </>
+        )}
+        {isParcelFeature(feature) && (
+          <>
+            <div className="text-zinc-500">Land Use</div>
+            <div className="text-zinc-300">{feature.properties.land_use}</div>
+            <div className="text-zinc-500">Situs Address</div>
+            <div className="text-zinc-300">{feature.properties.site_address ?? "—"}</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BasemapRelationshipsTab({
+  feature,
+  layer,
+  basemapData,
+  onSelect,
+}: {
+  feature: BasemapFeature;
+  layer: BasemapLayerKind;
+  basemapData: BasemapDataset | null;
+  onSelect: (selection: BasemapFeatureSelection | null) => void;
+}) {
+  if (!basemapData) {
+    return <div className="text-xs text-zinc-500">Basemap data is still loading.</div>;
+  }
+
+  if (layer === "addresses" && isAddressFeature(feature)) {
+    const parcel = getRelatedParcelFeature(basemapData, feature);
+    return (
+      <div className="space-y-2 text-xs">
+        <div className="text-zinc-500">Linked parcel</div>
+        {parcel ? (
+          <button
+            type="button"
+            onClick={() => onSelect({ layer: "parcels", feature: parcel })}
+            className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-left text-zinc-200 hover:border-zinc-500 hover:bg-zinc-700"
+          >
+            <div className="font-medium">{featureLabel(parcel)}</div>
+            <div className="text-[10px] text-zinc-400">{featureSummary(parcel) || "Parcel record"}</div>
+          </button>
+        ) : (
+          <div className="text-zinc-500">No linked parcel available.</div>
+        )}
+      </div>
+    );
+  }
+
+  if (layer === "parcels" && isParcelFeature(feature)) {
+    const addresses = getRelatedAddressFeatures(basemapData, feature);
+    return (
+      <div className="space-y-2 text-xs">
+        <div className="text-zinc-500">{addresses.length} address{addresses.length === 1 ? "" : "es"} reference this parcel.</div>
+        <div className="space-y-1">
+          {addresses.slice(0, 12).map((address) => (
+            <button
+              key={address.id}
+              type="button"
+              onClick={() => onSelect({ layer: "addresses", feature: address })}
+              className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-left text-zinc-200 hover:border-zinc-500 hover:bg-zinc-700"
+            >
+              <div className="font-medium">{featureLabel(address)}</div>
+              <div className="text-[10px] text-zinc-400">{featureSummary(address) || "Address record"}</div>
+            </button>
+          ))}
+        </div>
+        {addresses.length > 12 && (
+          <div className="text-[10px] text-zinc-500">Showing first 12 linked addresses.</div>
+        )}
+      </div>
+    );
+  }
+
+  return <div className="text-xs text-zinc-500">No related records found.</div>;
 }
 
 function SourceTab({ element }: { element: import("@/lib/types").NetworkElement }) {

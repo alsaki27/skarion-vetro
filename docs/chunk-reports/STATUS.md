@@ -14,7 +14,7 @@ Judged by files present **on the recovery branch** (baseline from `feat/30-chunk
 | 6 | Repository/service layer | partial | `src/lib/db/tenant-context.ts`, `project-repository.ts`, `design-repository.ts`, `repositories.test.ts`; missing: most route handlers still call `getDb()` directly |
 | 7 | Observability, audit, health | partial | `src/app/api/health/live/route.ts`, `health/ready/route.ts`, `src/lib/logging.ts`, `src/lib/audit.ts`; missing: audit hooks not wired into routes |
 | 8 | Engineering workspace shell | implemented | `src/app/workspace/[projectId]/page.tsx`, `ErrorBoundary.tsx`, `use-panel-state.ts`, `use-keyboard-shortcuts.ts`, panel persistence |
-| 9 | Virtualized attribute table | absent | Chunk description: virtualized rows, server-side sort/filter/pagination, bidirectional selection sync, CSV export. Current `BottomPanel.tsx` is a basic hardcoded table with no virtualization, pagination is client-only, no server endpoint |
+| 9 | Virtualized attribute table | partial | `src/components/workspace/BottomPanel.tsx` now virtualizes rows, supports sort/filter, CSV export, and bi-directional selection sync with basemap features; missing: server-side sort/filter/pagination and shared backend table endpoint |
 | 10 | Symbology, labels, legends | partial | `src/lib/styles.ts` with defaults, `StyleEditor.tsx`, `Legend.tsx`; missing: no schema/migration for `layer_styles`, no rule validation rejecting raw expressions, labels not applied to map |
 | 11 | Global search & measure | partial | `src/app/api/search/route.ts` for roads+addresses, `src/components/workspace/WorkspaceTopBar.tsx` has search input; missing: measure tool, coordinate readout, typeahead UI |
 | 12 | (not in plan — was placeholder) | absent | Chunk 12 in the 50-chunk plan = symbology (same as 10). Plan's chunk 13 = global search. The plan renumbered. |
@@ -60,7 +60,7 @@ Judged by files present **on the recovery branch** (baseline from `feat/30-chunk
 ## Summary
 
 - **Implemented:** 19 chunks (1, 8, 14, 15, 16, 17, 18, 19, 30, 35, 36, 37, 38, 39, 40, 42, 43, 46, plus anti-gate)
-- **Partial:** 22 chunks (2, 3, 4, 5, 6, 7, 10, 11, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 41, 44, 47, 48)
-- **Absent:** 4 chunks (9, 45, 49, 50 — plus renumbered 12/13 as noted above)
+- **Partial:** 23 chunks (2, 3, 4, 5, 6, 7, 9, 10, 11, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 41, 44, 47, 48)
+- **Absent:** 3 chunks (45, 49, 50 — plus renumbered 12/13 as noted above)
 
-All LLD fiber engine chunks (35-40) are **implemented** as library code but **untested** — dedicated test files were never written for them.
+LLD fiber engine chunks (35-40) are **implemented** as library code and now have dedicated coverage in `src/lib/lld-engines.test.ts`.

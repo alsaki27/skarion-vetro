@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl, { Map as MLMap, MapMouseEvent } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { StyleSpecification } from "maplibre-gl";
@@ -10,6 +10,7 @@ import { isLineElement, isPointElement, type PointElement } from "@/lib/types";
 import { nearestPointElement } from "@/lib/geometry";
 import { BASEMAP_LAYER_STYLES, loadBasemapLayers } from "@/lib/basemap";
 import type { BasemapLayerName } from "@/lib/basemap";
+import { findBasemapFeature } from "@/lib/basemap-workspace";
 
 const SNAP_FT = 60;
 
@@ -104,6 +105,10 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
   const basemap = useDesignStore((s) => s.basemap);
+  const basemapData = useDesignStore((s) => s.basemapData);
+  const setBasemapData = useDesignStore((s) => s.setBasemapData);
+  const selectedBasemapFeature = useDesignStore((s) => s.selectedBasemapFeature);
+  const selectBasemapFeature = useDesignStore((s) => s.selectBasemapFeature);
 
   // refs so stable event handlers see fresh state without re-binding
   const stateRef = useRef(useDesignStore.getState());
@@ -111,6 +116,12 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     () => useDesignStore.subscribe((s) => (stateRef.current = s)),
     [],
   );
+  const [hoveredParcelId, setHoveredParcelId] = useState<string | null>(null);
+  const hoveredParcelIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    hoveredParcelIdRef.current = hoveredParcelId;
+  }, [hoveredParcelId]);
 
   // dev-only: expose the store for E2E test drivers
   useEffect(() => {
@@ -118,6 +129,47 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       (window as unknown as Record<string, unknown>).__vetroStore = useDesignStore;
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!project.basemapId) {
+      setBasemapData(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    async function loadBasemapData() {
+      try {
+        const [parcelsRes, addressesRes] = await Promise.all([
+          fetch(`/api/projects/${project.id}/layers/parcels`),
+          fetch(`/api/projects/${project.id}/layers/addresses`),
+        ]);
+        if (!parcelsRes.ok || !addressesRes.ok) {
+          throw new Error("Failed to load parcel/address basemap data");
+        }
+        const [parcelsJson, addressesJson] = await Promise.all([
+          parcelsRes.json(),
+          addressesRes.json(),
+        ]);
+        if (cancelled) return;
+        setBasemapData({
+          parcels: parcelsJson.features ?? [],
+          addresses: addressesJson.features ?? [],
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.warn("[MapCanvas] basemap data load failed", error);
+          setBasemapData(null);
+        }
+      }
+    }
+
+    void loadBasemapData();
+    return () => {
+      cancelled = true;
+    };
+  }, [project.basemapId, project.id, setBasemapData]);
 
   // init map once
   useEffect(() => {
@@ -292,12 +344,43 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
 
     const handleClick = (ev: MapMouseEvent) => {
       const s = stateRef.current;
+      const currentBasemapData = s.basemapData;
       const pos: LngLat = [ev.lngLat.lng, ev.lngLat.lat];
       const all = Object.values(s.elements);
       const snap = (filter?: (e: PointElement) => boolean) =>
         nearestPointElement(pos, all, SNAP_FT, filter);
 
       if (s.tool === "select") {
+        const workspaceHit = currentBasemapData
+          ? map.queryRenderedFeatures(ev.point, {
+              layers: [
+                "workspace-addresses-circle",
+                "workspace-addresses-label",
+                "workspace-parcels-fill",
+                "workspace-parcels-line",
+                "workspace-parcels-label",
+              ],
+          })[0]
+          : null;
+        if (workspaceHit) {
+          const addressId = String(workspaceHit.properties?.address_external_id ?? "");
+          const parcelId = String(workspaceHit.properties?.parcel_external_id ?? "");
+          if (addressId && currentBasemapData) {
+            const hit = findBasemapFeature(currentBasemapData, "addresses", addressId);
+            if (hit) {
+              selectBasemapFeature({ layer: "addresses", feature: hit });
+              return;
+            }
+          }
+          if (parcelId && currentBasemapData) {
+            const hit = findBasemapFeature(currentBasemapData, "parcels", parcelId);
+            if (hit) {
+              selectBasemapFeature({ layer: "parcels", feature: hit });
+              return;
+            }
+          }
+        }
+
         const hit = map.queryRenderedFeatures(ev.point, {
           layers: ["design-points", "design-lines"],
         })[0];
@@ -379,6 +462,220 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     if (!map) return;
     map.setStyle(BASEMAP_STYLES[basemap]);
   }, [basemap]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const parcelSourceId = "workspace-parcels";
+    const addressSourceId = "workspace-addresses";
+    const parcelFillId = "workspace-parcels-fill";
+    const parcelLineId = "workspace-parcels-line";
+    const parcelLabelId = "workspace-parcels-label";
+    const addressCircleId = "workspace-addresses-circle";
+    const addressLabelId = "workspace-addresses-label";
+
+    const ensureSource = (id: string, data: GeoJSON.FeatureCollection) => {
+      const source = map.getSource(id) as maplibregl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData(data);
+      } else {
+        map.addSource(id, { type: "geojson", data });
+      }
+    };
+
+    const ensureLayers = () => {
+      if (!basemapData) {
+        return;
+      }
+
+      const parcelCollection: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: basemapData.parcels,
+      };
+      const addressCollection: GeoJSON.FeatureCollection = {
+        type: "FeatureCollection",
+        features: basemapData.addresses,
+      };
+
+      ensureSource(parcelSourceId, parcelCollection);
+      ensureSource(addressSourceId, addressCollection);
+
+      if (!map.getLayer(parcelFillId)) {
+        map.addLayer({
+          id: parcelFillId,
+          type: "fill",
+          source: parcelSourceId,
+          paint: {
+            "fill-color": "#f59e0b",
+            "fill-opacity": 0.08,
+          },
+        });
+      }
+      if (!map.getLayer(parcelLineId)) {
+        map.addLayer({
+          id: parcelLineId,
+          type: "line",
+          source: parcelSourceId,
+          paint: {
+            "line-color": "#f59e0b",
+            "line-width": 1,
+            "line-opacity": 0.55,
+          },
+        });
+      }
+      if (!map.getLayer(parcelLabelId)) {
+        map.addLayer({
+          id: parcelLabelId,
+          type: "symbol",
+          source: parcelSourceId,
+          layout: {
+            "text-field": ["get", "parcel_external_id"],
+            "text-size": 10,
+            "text-anchor": "center",
+            "text-allow-overlap": true,
+          },
+          paint: {
+            "text-color": "#fef3c7",
+            "text-halo-color": "#111827",
+            "text-halo-width": 1,
+          },
+        });
+      }
+      if (!map.getLayer(addressCircleId)) {
+        map.addLayer({
+          id: addressCircleId,
+          type: "circle",
+          source: addressSourceId,
+          minzoom: 15,
+          paint: {
+            "circle-radius": [
+              "case",
+              ["==", ["get", "serviceable"], true],
+              4,
+              3,
+            ],
+            "circle-color": [
+              "case",
+              ["==", ["get", "serviceable"], true],
+              "#22c55e",
+              "#64748b",
+            ],
+            "circle-opacity": [
+              "case",
+              ["==", ["get", "serviceable"], true],
+              0.95,
+              0.45,
+            ],
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": "#0f172a",
+          },
+        });
+      }
+      if (!map.getLayer(addressLabelId)) {
+        map.addLayer({
+          id: addressLabelId,
+          type: "symbol",
+          source: addressSourceId,
+          minzoom: 17,
+          layout: {
+            "text-field": ["coalesce", ["to-string", ["get", "house_number"]], ["get", "full_address"]],
+            "text-size": 10,
+            "text-offset": [0, 1],
+            "text-anchor": "top",
+            "text-allow-overlap": false,
+          },
+          paint: {
+            "text-color": "#e2e8f0",
+            "text-halo-color": "#020617",
+            "text-halo-width": 1.2,
+          },
+        });
+      }
+    };
+
+    const syncParcelLabels = (hoveredId: string | null, selectedFeature: typeof selectedBasemapFeature) => {
+      if (!map.getLayer(parcelLabelId)) return;
+      const labelIds = new Set<string>();
+      if (hoveredId) {
+        labelIds.add(hoveredId);
+      }
+      if (selectedFeature?.layer === "parcels") {
+        labelIds.add(selectedFeature.feature.id);
+      }
+      const parcelExternalIds = [...labelIds]
+        .map((id) => findBasemapFeature(basemapData, "parcels", id)?.properties.parcel_external_id)
+        .filter((value): value is string => Boolean(value));
+      map.setLayoutProperty(parcelLabelId, "visibility", parcelExternalIds.length > 0 ? "visible" : "none");
+      map.setFilter(
+        parcelLabelId,
+        parcelExternalIds.length > 0
+          ? ["in", ["get", "parcel_external_id"], ["literal", parcelExternalIds]]
+          : ["==", ["get", "parcel_external_id"], "__none__"],
+      );
+    };
+
+    ensureLayers();
+    syncParcelLabels(hoveredParcelIdRef.current, selectedBasemapFeature);
+
+    const handleMove = (ev: maplibregl.MapMouseEvent) => {
+      if (!basemapData) return;
+      const hit = map.queryRenderedFeatures(ev.point, {
+        layers: [parcelFillId, parcelLineId],
+      })[0];
+      if (!hit) {
+        setHoveredParcelId((prev) => (prev === null ? prev : null));
+        map.getCanvas().style.cursor = "";
+        return;
+      }
+      const parcelId = String(hit.properties?.parcel_external_id ?? "");
+      if (!parcelId) return;
+      setHoveredParcelId((prev) => (prev === parcelId ? prev : parcelId));
+      map.getCanvas().style.cursor = "pointer";
+    };
+
+    const handleLeave = () => {
+      setHoveredParcelId((prev) => (prev === null ? prev : null));
+      map.getCanvas().style.cursor = "";
+    };
+
+    const handleStyleRefresh = () => {
+      ensureLayers();
+      syncParcelLabels(hoveredParcelIdRef.current, useDesignStore.getState().selectedBasemapFeature);
+    };
+
+    map.on("mousemove", handleMove);
+    map.on("mouseleave", handleLeave);
+    map.on("styledata", handleStyleRefresh);
+
+    return () => {
+      map.off("mousemove", handleMove);
+      map.off("mouseleave", handleLeave);
+      map.off("styledata", handleStyleRefresh);
+    };
+  }, [basemapData, selectedBasemapFeature]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded() || !basemapData) return;
+    const parcelLabelId = "workspace-parcels-label";
+    if (!map.getLayer(parcelLabelId)) return;
+
+    const parcelExternalIds = [
+      ...(hoveredParcelId ? [hoveredParcelId] : []),
+      ...(selectedBasemapFeature?.layer === "parcels" ? [selectedBasemapFeature.feature.id] : []),
+    ]
+      .map((id) => findBasemapFeature(basemapData, "parcels", id)?.properties.parcel_external_id)
+      .filter((value): value is string => Boolean(value));
+
+    map.setLayoutProperty(parcelLabelId, "visibility", parcelExternalIds.length > 0 ? "visible" : "none");
+    map.setFilter(
+      parcelLabelId,
+      parcelExternalIds.length > 0
+        ? ["in", ["get", "parcel_external_id"], ["literal", parcelExternalIds]]
+        : ["==", ["get", "parcel_external_id"], "__none__"],
+    );
+  }, [basemapData, hoveredParcelId, selectedBasemapFeature]);
 
   // basemap canvas visibility toggle
   const showBasemapCanvas = useDesignStore((s) => s.showBasemapCanvas);
