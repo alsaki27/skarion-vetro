@@ -16,7 +16,7 @@ interface LayerItem {
 }
 
 const LAYER_GROUPS = [
-  "Basemaps", "Administrative", "Parcels", "Addresses",
+  "Basemaps", "Administrative", "Parcels & Property", "Addresses & Buildings",
   "Roads", "ROW", "Existing Utilities", "Environmental",
   "Proposed Network", "Reference/Annotation",
 ];
@@ -26,8 +26,8 @@ const DEFAULT_LAYERS: LayerItem[] = [
   { id: "basemap-streets", name: "Streets", group: "Basemaps", visible: false, opacity: 100, zIndex: 1 },
   { id: "basemap-labeled", name: "Labels Overlay", group: "Basemaps", visible: true, opacity: 100, zIndex: 2 },
   { id: "ref-boundaries", name: "Boundaries", group: "Administrative", visible: false, opacity: 80, zIndex: 3, minZoom: 10 },
-  { id: "ref-parcels", name: "Parcels", group: "Parcels", visible: false, opacity: 60, zIndex: 4, minZoom: 14 },
-  { id: "ref-addresses", name: "Address Points", group: "Addresses", visible: false, opacity: 100, zIndex: 5, minZoom: 15 },
+  { id: "ref-parcels", name: "Parcels (WCAD)", group: "Parcels & Property", visible: false, opacity: 60, zIndex: 4, minZoom: 15, sourceType: "WCAD Tax Parcels", description: "Muted reference polygons for property boundaries." },
+  { id: "ref-addresses", name: "Address Points (E911)", group: "Addresses & Buildings", visible: false, opacity: 100, zIndex: 5, minZoom: 15, sourceType: "Williamson County 911", description: "Serviceable premises use filled dots; closed or non-serviceable points remain hollow/dim." },
   { id: "ref-roads", name: "Road Centerlines", group: "Roads", visible: true, opacity: 100, zIndex: 6, minZoom: 8 },
   { id: "ref-row", name: "ROW / Easements", group: "ROW", visible: false, opacity: 100, zIndex: 7, minZoom: 12 },
   { id: "ref-utilities", name: "Existing Utilities", group: "Existing Utilities", visible: false, opacity: 70, zIndex: 8, minZoom: 13 },

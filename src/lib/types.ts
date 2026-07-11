@@ -253,6 +253,10 @@ export interface ProjectFixture {
   gradingWeights: Record<string, number>;
   /** Optional basemap reference layers (Chunk 1 Rev 3): per-canonical-layer WGS84 GeoJSON */
   referenceBasemap?: Record<string, GeoJSON.FeatureCollection>;
+  /** Optional linked basemap fixture id for real parcel/address layers */
+  basemapId?: string;
+  /** Owning organization for tenant scoping */
+  orgId?: string;
 }
 
 // ---------------------------------------------------------------------------
