@@ -53,6 +53,25 @@ export const orgMembers = pgTable("org_members", {
 ]);
 
 // ===========================================================================
+// Organization Invitations — persistent, single-use, expiring
+// ===========================================================================
+
+export const organizationInvitations = pgTable("organization_invitations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role", { enum: ["student", "instructor", "admin"] }).notNull(),
+  tokenHash: text("token_hash").notNull(),
+  inviterId: uuid("inviter_id").notNull().references(() => users.id),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_org_invitations_email_org").on(table.orgId, table.email),
+]);
+
+// ===========================================================================
 // Audit Log
 // ===========================================================================
 

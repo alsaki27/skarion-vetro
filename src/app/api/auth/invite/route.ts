@@ -1,15 +1,11 @@
-// Create invite (Chunk 5 Rev 3) — admin/instructor invites a user to an org
-// Returns an invite token that the invited user presents at signup.
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/auth";
-
-const INVITE_TOKENS = new Map<string, { email: string; orgId: string; role: string; expiresAt: number }>();
+import { createInvite } from "@/lib/invitations";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await getAuthFromRequest(request);
-
-    // Dev mode: any authenticated user can create invites
     if (!auth) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
@@ -18,26 +14,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Only admin and instructor roles can create invites" }, { status: 403 });
     }
 
-    const { email, role, orgId } = await request.json();
-    if (!email || !role || !orgId) {
-      return NextResponse.json({ error: "email, role, and orgId required" }, { status: 400 });
+    const body = await request.json();
+    const { email, role } = body;
+    if (!email || !role) {
+      return NextResponse.json({ error: "email and role required" }, { status: 400 });
     }
 
     if (role !== "student" && role !== "instructor" && role !== "admin") {
       return NextResponse.json({ error: "role must be student, instructor, or admin" }, { status: 400 });
     }
 
-    const inviteToken = crypto.randomUUID();
-    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+    // Rate limit: 10 invites per actor per hour
+    const rlKey = `invite:actor:${auth.sub}`;
+    const rl = checkRateLimit(rlKey, { maxRequests: 10, windowMs: 3600_000 });
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many invites. Try again later." }, { status: 429 });
+    }
 
-    INVITE_TOKENS.set(inviteToken, { email, orgId, role, expiresAt });
+    const result = await createInvite({
+      orgId: auth.org_id,
+      email,
+      role,
+      inviterId: auth.sub,
+      inviterRole: auth.role,
+    });
 
     return NextResponse.json({
-      invite_token: inviteToken,
-      expires_at: new Date(expiresAt).toISOString(),
-      message: `Invite created for ${email}. In production, an email would be sent. The token is: ${inviteToken}`,
+      invite_token: result.token,
+      expires_at: result.expiresAt,
+      message: `Invite created for ${email}.`,
     }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    const status = err instanceof Error && "httpStatus" in err
+      ? (err as unknown as { httpStatus: number }).httpStatus
+      : 500;
+    return NextResponse.json({ error: String(err) }, { status });
   }
 }
