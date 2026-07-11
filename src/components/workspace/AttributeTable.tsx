@@ -31,7 +31,11 @@ const COLUMNS: { key: string; label: string }[] = [
   { key: "port_count", label: "Ports" },
 ];
 
-export function BottomPanel({ projectId: _projectId }: { projectId: string }) {
+interface AttributeTableProps {
+  projectId: string;
+}
+
+export function AttributeTable({ projectId: _projectId }: AttributeTableProps) {
   const elements = useDesignStore((s) => s.elements);
   const selectedId = useDesignStore((s) => s.selectedId);
   const select = useDesignStore((s) => s.select);
@@ -100,6 +104,7 @@ export function BottomPanel({ projectId: _projectId }: { projectId: string }) {
     URL.revokeObjectURL(url);
   }, [rows]);
 
+  // Scroll selected row into view
   useEffect(() => {
     if (selectedId) {
       const idx = rows.findIndex((r) => r.id === selectedId);
@@ -173,13 +178,13 @@ export function BottomPanel({ projectId: _projectId }: { projectId: string }) {
                 </tr>
               );
             })}
+            {rows.length === 0 && (
+              <tr><td colSpan={COLUMNS.length} className="px-2 py-2 text-center text-zinc-500 italic">No features match.</td></tr>
+            )}
           </tbody>
         </table>
         {rows.length > 0 && (
-          <div style={{ height: rowVirtualizer.getTotalSize() - rowVirtualizer.getVirtualItems().length * 28 }} />
-        )}
-        {rows.length === 0 && (
-          <div className="px-2 py-2 text-center text-zinc-500 italic">No features match.</div>
+          <div className="h-0" style={{ height: rowVirtualizer.getTotalSize() - rowVirtualizer.getVirtualItems().length * 28 }} />
         )}
       </div>
     </div>
@@ -193,8 +198,12 @@ function CellValue({ row, col }: { row: NetworkElement; col: string }) {
     case "label": return <span>{row.label ?? "—"}</span>;
     case "catalog_key": return <span>{String(row.attributes.catalog_key ?? "—")}</span>;
     case "coords": {
-      if (isPointElement(row)) return <span className="text-zinc-500">{row.position[0].toFixed(4)}, {row.position[1].toFixed(4)}</span>;
-      if (isLineElement(row)) return <span className="text-zinc-500">{row.path.length} pts</span>;
+      if (isPointElement(row)) {
+        return <span className="text-zinc-500">{row.position[0].toFixed(4)}, {row.position[1].toFixed(4)}</span>;
+      }
+      if (isLineElement(row)) {
+        return <span className="text-zinc-500">{row.path.length} pts</span>;
+      }
       return <span className="text-zinc-500">—</span>;
     }
     case "cable_count": return <span>{String(row.attributes.cable_count ?? "—")}</span>;
