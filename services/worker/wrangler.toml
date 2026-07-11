@@ -1,0 +1,14 @@
+name = "skarion-vetro"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+NEON_DATABASE_URL = ""
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "skarion-vetro"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "placeholder-kv-id"

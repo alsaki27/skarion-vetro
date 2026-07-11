@@ -1,0 +1,21 @@
+{
+  "name": "skarion-vetro-worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "hono": "^4.6.5",
+    "@neondatabase/serverless": "^1.1.0",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241022.0",
+    "wrangler": "^3.83.0",
+    "typescript": "^5.6.0"
+  }
+}
