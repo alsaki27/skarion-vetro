@@ -363,6 +363,60 @@ export const authSessions = pgTable("auth_sessions", {
 ]);
 
 // ===========================================================================
+// Learning objectives — knowledge content and mastery model
+// ===========================================================================
+
+export const learningConcepts = pgTable("learning_concepts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").references(() => organizations.id),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  description: text("description"),
+  prerequisiteIds: text("prerequisite_ids").array().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const learningObjectives = pgTable("learning_objectives", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").references(() => organizations.id),
+  conceptId: uuid("concept_id").references(() => learningConcepts.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => curriculumProjects.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  masteryEvidence: text("mastery_evidence").notNull(),
+  assessmentMethod: text("assessment_method").notNull(),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const masteryEvidence = pgTable("mastery_evidence", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").references(() => organizations.id),
+  objectiveId: uuid("objective_id").notNull().references(() => learningObjectives.id, { onDelete: "cascade" }),
+  state: text("state", {
+    enum: ["not_started", "introduced", "practicing", "demonstrated", "mastered", "needs_review"],
+  }).notNull().default("not_started"),
+  source: text("source").notNull(),
+  sourceId: text("source_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  uniqueIndex("mastery_evidence_user_objective").on(table.userId, table.objectiveId),
+  index("idx_mastery_evidence_user").on(table.userId),
+]);
+
+export const lessonContent = pgTable("lesson_content", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").references(() => organizations.id),
+  conceptId: uuid("concept_id").references(() => learningConcepts.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  bodyMd: text("body_md").notNull(),
+  version: integer("version").notNull().default(1),
+  sourceDoc: text("source_doc"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ===========================================================================
 // AI layer
 // ===========================================================================
 
