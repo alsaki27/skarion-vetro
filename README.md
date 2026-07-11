@@ -178,6 +178,15 @@ npm run db:seed             # Seed database (requires DATABASE_URL)
 
 All commits must pass `npm run verify` before push.
 
+### Git hooks (required for contributors)
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook rejects empty commits (zero changed files) and placeholder
+messages matching `placeholder|WIP chunk|phase N chunk N$`.
+
 ### Worker (sidecar)
 
 ```bash

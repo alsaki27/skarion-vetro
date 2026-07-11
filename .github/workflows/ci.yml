@@ -71,6 +71,34 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/skarion_test
   # Confirm idempotent — second push should exit clean
 
+  no-empty-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: |
+          for c in $(git log --format=%h origin/${{ github.base_ref || 'main' }}..HEAD 2>/dev/null || git log --format=%h HEAD~${{ github.event.commits.length || 0 }}..HEAD); do
+            n=$(git diff-tree --no-commit-id --name-only -r $c | wc -l)
+            if [ "$n" -eq 0 ]; then echo "EMPTY COMMIT: $c"; exit 1; fi
+          done
+        name: Reject empty commits
+
+  test-floor-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test -- --reporter verbose
+      - run: |
+          FLOOR=$(cat tests/.test-floor)
+          COUNT=$(npm test -- --run 2>&1 | grep -oP 'Tests\s+\d+ passed' | grep -oP '\d+')
+          if [ "$COUNT" -lt "$FLOOR" ]; then echo "Test count $COUNT below floor $FLOOR"; exit 1; fi
+
   e2e-smoke:
     runs-on: ubuntu-latest
     steps:

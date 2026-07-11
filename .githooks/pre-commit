@@ -1,0 +1,17 @@
+#!/bin/sh
+# Pre-commit hook: reject empty commits and placeholder messages.
+# Install: git config core.hooksPath .githooks
+
+CHANGED=$(git diff --cached --name-only)
+if [ -z "$CHANGED" ]; then
+  echo "ERROR: Cannot commit with zero changed files."
+  exit 1
+fi
+
+MSG=$(cat "$1" 2>/dev/null || echo "")
+if echo "$MSG" | grep -qiE "^(placeholder|wip chunk|phase [0-9]+ chunk [0-9]+$)"; then
+  echo "ERROR: Commit message looks like a placeholder: $MSG"
+  exit 1
+fi
+
+exit 0
