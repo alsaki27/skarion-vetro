@@ -4,24 +4,26 @@ import { neon } from "@neondatabase/serverless";
 import { generateId } from "./lib/id";
 import { authMiddleware, type AuthPayload } from "./auth";
 
-type Variables = {
-  auth: AuthPayload;
-};
+type Variables = { auth: AuthPayload };
 
 const app = new Hono<{ Variables: Variables }>();
 
-// Restricted CORS — allow list from env, fall back to localhost in dev
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:8787").split(",").map(s => s.trim());
+// CORS: env-configured origin allowlist, explicit methods/headers, never wildcard in production
+const CORS_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:8787")
+  .split(",").map((s: string) => s.trim());
 app.use("*", cors({
-  origin: ALLOWED_ORIGINS,
+  origin: CORS_ORIGINS,
   credentials: true,
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
+  exposeHeaders: ["X-Request-Id"],
 }));
 
 function sql() {
   return neon(process.env.NEON_DATABASE_URL ?? "");
 }
 
-// Safe project DTO — never returns optimal_design, grading secrets, or other answer-key fields
+// Explicit public-column DTO — never SELECT *, never returns optimal_design or grading secrets
 function safeProjectDto(row: Record<string, unknown>) {
   return {
     id: row.id,
@@ -41,6 +43,16 @@ function safeProjectDto(row: Record<string, unknown>) {
   };
 }
 
+function safeDesignDto(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    project_id: row.project_id,
+    user_id: row.user_id,
+    snapshot_note: row.snapshot_note,
+    created_at: row.created_at,
+  };
+}
+
 // ===========================================================================
 // Public
 // ===========================================================================
@@ -57,11 +69,14 @@ app.get("/api/projects", async (c) => {
   try {
     const { org_id } = c.var.auth;
     const db = sql();
-    const rows = await db`SELECT id, slug, title, description, difficulty, environment, split_architecture, pass_threshold FROM projects WHERE org_id = ${org_id} OR org_id IS NULL ORDER BY sort_order`;
+    const rows = await db`
+      SELECT id, slug, title, description, difficulty, environment, split_architecture, pass_threshold
+      FROM projects WHERE org_id = ${org_id} OR org_id IS NULL ORDER BY sort_order
+    `;
     return c.json({ projects: rows });
   } catch (err) {
     console.error("GET /api/projects failed", err);
-    return c.json({ error: "Internal server error" }, 500);
+    return c.json({ error: "Internal server error", error_code: "INTERNAL_ERROR" }, 500);
   }
 });
 
@@ -71,33 +86,36 @@ app.get("/api/projects/:slug", async (c) => {
     const { org_id } = c.var.auth;
     const db = sql();
     const rows = await db`
-      SELECT * FROM projects WHERE slug = ${slug} AND (org_id = ${org_id} OR org_id IS NULL) LIMIT 1
+      SELECT id, slug, title, description, difficulty, environment, split_architecture,
+             pass_threshold, location_name, map_center, map_zoom, constraints,
+             existing_infrastructure, is_active
+      FROM projects WHERE slug = ${slug} AND (org_id = ${org_id} OR org_id IS NULL) LIMIT 1
     `;
-    if (!rows.length) return c.json({ error: "Not found" }, 404);
+    if (!rows.length) return c.json({ error: "Not found", error_code: "NOT_FOUND" }, 404);
     return c.json(safeProjectDto(rows[0]));
   } catch (err) {
     console.error(`GET /api/projects/${c.req.param("slug")} failed`, err);
-    return c.json({ error: "Internal server error" }, 500);
+    return c.json({ error: "Internal server error", error_code: "INTERNAL_ERROR" }, 500);
   }
 });
 
 app.post("/api/designs/save", async (c) => {
   try {
-    const { sub } = c.var.auth;
+    const { sub, org_id } = c.var.auth;
     const body = await c.req.json();
     const { projectId, snapshotData, note } = body;
-    if (!projectId || !snapshotData) return c.json({ error: "projectId and snapshotData required" }, 400);
+    if (!projectId || !snapshotData) return c.json({ error: "projectId and snapshotData required", error_code: "VALIDATION_ERROR" }, 400);
 
     const db = sql();
     const id = generateId();
     await db`
       INSERT INTO design_snapshots (id, org_id, project_id, user_id, snapshot_data, snapshot_note)
-      VALUES (${id}, ${c.var.auth.org_id}, ${projectId}, ${sub}, ${JSON.stringify(snapshotData)}, ${note ?? null})
+      VALUES (${id}, ${org_id}, ${projectId}, ${sub}, ${JSON.stringify(snapshotData)}, ${note ?? null})
     `;
     return c.json({ id, createdAt: new Date().toISOString() }, 201);
   } catch (err) {
     console.error("POST /api/designs/save failed", err);
-    return c.json({ error: "Internal server error" }, 500);
+    return c.json({ error: "Internal server error", error_code: "INTERNAL_ERROR" }, 500);
   }
 });
 
@@ -109,22 +127,22 @@ app.get("/api/designs/:id", async (c) => {
 
     let rows;
     if (role === "student") {
-      // Students can only read their own designs
       rows = await db`
-        SELECT * FROM design_snapshots WHERE id = ${id} AND org_id = ${org_id} AND user_id = ${sub}
+        SELECT id, project_id, user_id, snapshot_note, created_at
+        FROM design_snapshots WHERE id = ${id} AND org_id = ${org_id} AND user_id = ${sub}
       `;
     } else {
-      // Instructors/admins can read any design in their org
       rows = await db`
-        SELECT * FROM design_snapshots WHERE id = ${id} AND org_id = ${org_id}
+        SELECT id, project_id, user_id, snapshot_note, created_at
+        FROM design_snapshots WHERE id = ${id} AND org_id = ${org_id}
       `;
     }
 
-    if (!rows.length) return c.json({ error: "Not found" }, 404);
-    return c.json(rows[0]);
+    if (!rows.length) return c.json({ error: "Not found", error_code: "NOT_FOUND" }, 404);
+    return c.json(safeDesignDto(rows[0]));
   } catch (err) {
     console.error(`GET /api/designs/${c.req.param("id")} failed`, err);
-    return c.json({ error: "Internal server error" }, 500);
+    return c.json({ error: "Internal server error", error_code: "INTERNAL_ERROR" }, 500);
   }
 });
 
@@ -133,19 +151,19 @@ app.get("/api/progress/:userId", async (c) => {
     const { userId } = c.req.param();
     const { sub, org_id, role } = c.var.auth;
 
-    // Students may only read their own progress
     if (role === "student" && userId !== sub) {
-      return c.json({ error: "Forbidden" }, 403);
+      return c.json({ error: "Forbidden", error_code: "FORBIDDEN" }, 403);
     }
 
     const db = sql();
     const rows = await db`
-      SELECT * FROM candidate_progress WHERE user_id = ${userId} AND org_id = ${org_id}
+      SELECT user_id, project_id, status, time_spent_minutes, attempts, best_score, started_at, completed_at
+      FROM candidate_progress WHERE user_id = ${userId} AND org_id = ${org_id}
     `;
     return c.json({ progress: rows });
   } catch (err) {
     console.error(`GET /api/progress/${c.req.param("userId")} failed`, err);
-    return c.json({ error: "Internal server error" }, 500);
+    return c.json({ error: "Internal server error", error_code: "INTERNAL_ERROR" }, 500);
   }
 });
 
