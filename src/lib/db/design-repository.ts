@@ -2,7 +2,6 @@
 import { getDb, schema } from "@/db";
 import { eq, and } from "drizzle-orm";
 import type { TenantContext } from "./tenant-context";
-import { NotFoundError } from "./tenant-context";
 
 export class DesignRepository {
   constructor(private ctx: TenantContext) {}
