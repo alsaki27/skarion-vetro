@@ -275,6 +275,45 @@ export const basemapCanvasAssets = pgTable("basemap_canvas_assets", {
 });
 
 // ===========================================================================
+// Auth — Persistent invitations and sessions (Chunk 3)
+// ===========================================================================
+
+export const organizationInvitations = pgTable("organization_invitations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role", { enum: ["student", "instructor", "admin"] }).notNull(),
+  invitedBy: uuid("invited_by").references(() => users.id),
+  tokenHash: text("token_hash").notNull(),
+  status: text("status", { enum: ["pending", "accepted", "revoked", "expired"] }).notNull().default("pending"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_org_invitations_org").on(table.orgId),
+  index("idx_org_invitations_email").on(table.email),
+  index("idx_org_invitations_token").on(table.tokenHash),
+]);
+
+export const authSessions = pgTable("auth_sessions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenFamily: text("token_family").notNull(),
+  currentRefreshHash: text("current_refresh_hash"),
+  deviceInfo: text("device_info"),
+  ipAddress: text("ip_address"),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_auth_sessions_user").on(table.userId, table.lastUsedAt),
+  index("idx_auth_sessions_org").on(table.orgId),
+  index("idx_auth_sessions_family").on(table.tokenFamily),
+]);
+
+// ===========================================================================
 // AI layer
 // ===========================================================================
 
