@@ -54,8 +54,8 @@ async function seed() {
     orgId: org.id,
     name: "Pilot Cohort 1",
     slug: "pilot-1",
-    instructorId: instructor.id,
   }).returning();
+  await db.insert(schema.cohortInstructors).values({ cohortId: cohort.id, userId: instructor.id });
   for (const s of students) {
     await db.insert(schema.cohortMembers).values({ cohortId: cohort.id, userId: s.id });
   }

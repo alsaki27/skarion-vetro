@@ -97,7 +97,10 @@ export const cohorts = pgTable("cohorts", {
   orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   slug: text("slug").notNull(),
-  instructorId: uuid("instructor_id").references(() => users.id),
+  description: text("description"),
+  timezone: text("timezone").notNull().default("UTC"),
+  status: text("status", { enum: ["active", "archived"] }).notNull().default("active"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 }, (table) => [
   uniqueIndex("cohorts_org_slug_idx").on(table.orgId, table.slug),
@@ -109,6 +112,37 @@ export const cohortMembers = pgTable("cohort_members", {
   joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow(),
 }, (table) => [
   primaryKey({ columns: [table.cohortId, table.userId] }),
+]);
+
+export const cohortInstructors = pgTable("cohort_instructors", {
+  cohortId: uuid("cohort_id").notNull().references(() => cohorts.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  primaryKey({ columns: [table.cohortId, table.userId] }),
+]);
+
+// ===========================================================================
+// Assignments — connect curriculum versions to cohorts
+// ===========================================================================
+
+export const assignments = pgTable("assignments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  cohortId: uuid("cohort_id").notNull().references(() => cohorts.id, { onDelete: "cascade" }),
+  projectVersionId: uuid("project_version_id").notNull().references(() => curriculumProjectVersions.id),
+  title: text("title").notNull(),
+  openAt: timestamp("open_at", { withTimezone: true }).notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  closeAt: timestamp("close_at", { withTimezone: true }),
+  state: text("state", { enum: ["scheduled", "open", "closed", "archived"] }).notNull().default("scheduled"),
+  attemptLimit: integer("attempt_limit"),
+  hintPolicy: text("hint_policy", { enum: ["unlimited", "limited", "none"] }).notNull().default("unlimited"),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_assignments_cohort").on(table.cohortId),
+  index("idx_assignments_state").on(table.state),
 ]);
 
 // ===========================================================================
