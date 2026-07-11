@@ -1,0 +1,35 @@
+{
+  "template": "wcad-tax-parcels-v1",
+  "publisher": "Williamson Central Appraisal District (WCAD)",
+  "source_layer": "WCAD_Tax_Parcels/FeatureServer/0",
+  "description": "Source-to-canonical field mapping for WCAD parcel shapefiles. Any field not listed here is DROPPED at intake. Restricted fields are listed explicitly so their exclusion is auditable.",
+  "map": {
+    "PARCELID":   { "target": "parcel_external_id", "transform": "trim" },
+    "SITEADDRES": { "target": "site_address",       "transform": "trim_or_null" },
+    "USEDSCRP":   { "target": "land_use_source",    "transform": "trim_or_null" },
+    "USEDSCRP#2": { "target": "land_use",           "transform": "land_use_normalize" },
+    "AssessedAc": { "target": "acreage",            "transform": "float_or_null" },
+    "NGHBRHDCD":  { "target": "neighborhood_code",  "transform": "trim_or_null" },
+    "Instrument": { "target": "plat_year",          "transform": "leading_year_or_null" },
+    "WATERSERV":  { "target": "water_service",      "transform": "trim_or_null" },
+    "SEWERSERV":  { "target": "sewer_service",      "transform": "trim_or_null" },
+    "GlobalID":   { "target": "source_id",          "transform": "trim" },
+    "LASTUPDATE": { "target": "source_last_update", "transform": "trim_or_null" },
+    "MapNumber":  { "target": "map_number",         "transform": "trim_or_null" }
+  },
+  "land_use_normalize": {
+    "Residential": "residential",
+    "Land": "land",
+    "Land - Transitional": "land_transitional",
+    "LTRR-Land Transitional Residential": "land_transitional",
+    "LTRC-Land Transitional Commercial": "commercial",
+    "C1": "commercial", "C2": "commercial", "C3": "commercial",
+    "C4": "commercial", "C5": "commercial", "C6": "commercial", "CA": "commercial",
+    "_default": "other"
+  },
+  "restricted_dropped": [
+    "OWNERNME1", "OWNERNME2", "CNVYNAME",
+    "PSTLADDRES", "PSTLCITY", "PSTLSTATE", "PSTLZIP5", "PSTLZIP4",
+    "LNDVALUE", "PRVASSDVAL", "CNTASSDVAL", "PRVTXBLVAL", "CNTTXBLVAL"
+  ]
+}

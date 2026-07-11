@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "skarion-vetro/address-feature.schema.json",
+  "title": "Canonical address point feature (student-facing basemap layer)",
+  "description": "E911-style address points normalized for Skarion Vetro. Editor identities and free-text notes from the source are intentionally not representable.",
+  "type": "object",
+  "required": ["type", "properties", "geometry"],
+  "properties": {
+    "type": { "const": "Feature" },
+    "geometry": {
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": { "type": { "const": "Point" } }
+    },
+    "properties": {
+      "type": "object",
+      "required": ["address_external_id", "full_address", "status", "address_type", "source_id"],
+      "additionalProperties": false,
+      "properties": {
+        "address_external_id": {
+          "type": "string", "minLength": 1, "maxLength": 40,
+          "description": "Publisher GlobalID (braces stripped). ADDRESS_ID is unpopulated in the county export, so the GlobalID GUID is the stable join key."
+        },
+        "full_address": {
+          "type": "string", "maxLength": 64,
+          "description": "Label name as published (house number + full road name)."
+        },
+        "house_number": { "type": ["integer", "null"], "minimum": 0 },
+        "unit": { "type": ["string", "null"], "maxLength": 12 },
+        "street_prefix": { "type": ["string", "null"], "maxLength": 4 },
+        "street_name": { "type": ["string", "null"], "maxLength": 32 },
+        "street_type": { "type": ["string", "null"], "maxLength": 8 },
+        "street_suffix": { "type": ["string", "null"], "maxLength": 4 },
+        "street_full": {
+          "type": ["string", "null"], "maxLength": 40,
+          "description": "Publisher's assembled road name (RD_FULLNAM), preserved verbatim."
+        },
+        "road_segment_external_id": {
+          "type": ["string", "null"], "maxLength": 12,
+          "description": "County road SEGMENT_ID — future join to a road centerline layer."
+        },
+        "city": { "type": ["string", "null"], "maxLength": 20 },
+        "postal_code": { "type": ["string", "null"], "maxLength": 10 },
+        "county": { "type": ["string", "null"], "maxLength": 16 },
+        "address_type": {
+          "type": "string", "maxLength": 24,
+          "description": "Publisher classification, e.g. SINGLE FAMILY, OPEN SPACE, UTILITIES."
+        },
+        "status": {
+          "type": "string", "enum": ["OPEN", "CLOSED", "RETIRE", "OTHER"],
+          "description": "E911 lifecycle status. OPEN = active assigned address."
+        },
+        "parcel_external_id": {
+          "type": ["string", "null"], "maxLength": 20,
+          "description": "Linked parcel (WCAD PARCELID) via point-in-polygon at intake; null if the point falls outside the fixture parcels."
+        },
+        "source_id": { "type": "string", "description": "Publisher GlobalID." },
+        "source_last_update": { "type": ["string", "null"], "maxLength": 24 }
+      }
+    }
+  }
+}

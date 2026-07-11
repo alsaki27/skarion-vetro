@@ -67,16 +67,16 @@ describe("worker design DTO redaction", () => {
 
 describe("worker progress self-only enforcement", () => {
   it("student cannot read other user progress", () => {
-    const role = "student";
-    const sub = "user-a";
-    const requestedUserId = "user-b";
+    const role: string = "student";
+    const sub: string = "user-a";
+    const requestedUserId: string = "user-b";
     expect(role === "student" && requestedUserId !== sub).toBe(true);
   });
 
   it("instructor can read any progress in org", () => {
-    const role = "instructor";
-    const sub = "user-a";
-    const requestedUserId = "user-b";
+    const role: string = "instructor";
+    const sub: string = "user-a";
+    const requestedUserId: string = "user-b";
     expect(role === "student" && requestedUserId !== sub).toBe(false);
   });
 });
