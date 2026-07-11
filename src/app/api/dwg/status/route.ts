@@ -1,22 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-
-// Receives status webhooks from the DWG Ingest sidecar
-// In production, verify the webhook origin via shared secret
+import { getDb, schema } from "@/db";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { job_id, status, failure_reason } = body;
 
-    // Log the status update
+    if (!job_id || !status) {
+      return NextResponse.json({ error: "job_id and status required" }, { status: 400 });
+    }
+
+    const db = getDb();
+    if (db) {
+      await db
+        .update(schema.basemapSubmissions)
+        .set({
+          status,
+          failureReason: failure_reason ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.basemapSubmissions.dwgJobId, job_id));
+    }
+
     console.log(`[DWG Ingest] Job ${job_id}: ${status}${failure_reason ? ` (${failure_reason})` : ""}`);
-
-    // TODO: In production, update the basemap_submissions row in the database
-    // await db.update(basemapSubmissions).set({ status, failureReason: failure_reason })
-    //   .where(eq(basemapSubmissions.dwgJobId, job_id));
-
     return NextResponse.json({ received: true });
   } catch (err) {
+    console.error("[DWG Ingest] Webhook error", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

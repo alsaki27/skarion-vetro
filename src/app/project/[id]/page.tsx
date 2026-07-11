@@ -37,8 +37,8 @@ export default function ProjectPage({
     return (
       <main className="p-10 text-zinc-300">
         Project not found.{" "}
-        <Link className="text-blue-400 underline" href="/">
-          Back to dashboard
+        <Link className="text-blue-400 underline" href="/curriculum">
+          Back to curriculum
         </Link>
       </main>
     );
@@ -47,7 +47,7 @@ export default function ProjectPage({
   return (
     <div className="flex h-screen flex-col bg-zinc-950">
       <header className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-900 px-3 py-2 text-sm">
-        <Link href="/" className="text-zinc-400 hover:text-white">
+        <Link href="/curriculum" className="text-zinc-400 hover:text-white">
           ⬅️
         </Link>
         <span className="font-semibold text-white">{project.title}</span>

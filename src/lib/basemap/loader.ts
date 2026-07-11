@@ -4,13 +4,22 @@
 
 import type { BasemapLayerSet } from "./types";
 
+const emptyFC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
 let cachedBasemapLayerSet: BasemapLayerSet | null = null;
 
 export async function loadBasemapLayers(url: string = "/basemap-sample.geojson"): Promise<BasemapLayerSet> {
   if (cachedBasemapLayerSet) return cachedBasemapLayerSet;
 
-  const response = await fetch(url);
-  const data: GeoJSON.FeatureCollection = await response.json();
+  let data: GeoJSON.FeatureCollection;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    data = await response.json();
+  } catch (err) {
+    console.warn("[Basemap] Failed to load reference layers, returning empty set:", err);
+    return { EOP: emptyFC, CL: emptyFC, RW: emptyFC, PARCEL: emptyFC, BOUNDARY: emptyFC };
+  }
 
   const layers: Record<string, GeoJSON.Feature[]> = {};
   for (const feature of data.features) {

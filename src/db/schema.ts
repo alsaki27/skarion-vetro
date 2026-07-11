@@ -242,12 +242,14 @@ export const basemapSubmissions = pgTable("basemap_submissions", {
   dwgKey: text("dwg_key"),
   dwgFilename: text("dwg_filename"),
   dwgSizeBytes: integer("dwg_size_bytes"),
+  dwgJobId: text("dwg_job_id"),
   geojsonLayers: jsonb("geojson_layers"),
   verificationResults: jsonb("verification_results"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => [
   index("idx_basemap_submissions_template_user").on(table.templateId, table.userId),
+  index("idx_basemap_submissions_dwg_job").on(table.dwgJobId),
 ]);
 
 export const basemapGrades = pgTable("basemap_grades", {

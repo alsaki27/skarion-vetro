@@ -32,7 +32,12 @@ export default function SpliceTable() {
     (e) => isLineElement(e) && e.type === "cable",
   ) as LineElement[];
 
-  const closures = Object.values(elements).filter((e) =>
+  const allElements = Object.values(elements);
+  const terminationPoints = allElements.filter(
+    (e) => isPointElement(e) && ["splice_closure", "handhole", "mst", "splitter", "fdh_cabinet", "riser", "pole", "co"].includes(e.type),
+  );
+
+  const closures = allElements.filter((e) =>
     isPointElement(e) && (e.type === "splice_closure" || e.type === "handhole"),
   );
 
@@ -120,20 +125,32 @@ export default function SpliceTable() {
                         {a.color}
                       </td>
                       <td className="border border-zinc-800 px-1 py-0.5">
-                        <input
-                          className="w-16 bg-transparent text-zinc-300 outline-none"
+                        <select
+                          className="w-20 bg-zinc-800 text-zinc-300 outline-none"
                           value={a.startElementId ?? ""}
                           onChange={(e) => updateFiber(a.fiberId, "startElementId", e.target.value)}
-                          placeholder="elem id"
-                        />
+                        >
+                          <option value="">—</option>
+                          {terminationPoints.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {isPointElement(p) ? `${p.label ?? p.type} ${p.id.slice(-6)}` : p.id.slice(-6)}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="border border-zinc-800 px-1 py-0.5">
-                        <input
-                          className="w-16 bg-transparent text-zinc-300 outline-none"
+                        <select
+                          className="w-20 bg-zinc-800 text-zinc-300 outline-none"
                           value={a.endElementId ?? ""}
                           onChange={(e) => updateFiber(a.fiberId, "endElementId", e.target.value)}
-                          placeholder="elem id"
-                        />
+                        >
+                          <option value="">—</option>
+                          {terminationPoints.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {isPointElement(p) ? `${p.label ?? p.type} ${p.id.slice(-6)}` : p.id.slice(-6)}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="border border-zinc-800 px-1 py-0.5">
                         <button

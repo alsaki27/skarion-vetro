@@ -171,6 +171,8 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           }
           // Ensure visibility matches store state
           updateBasemapVisibility();
+        }).catch((err) => {
+          console.warn("[MapCanvas] Basemap layers failed to load:", err);
         });
         return; // exit early; sources will be added async
       }
