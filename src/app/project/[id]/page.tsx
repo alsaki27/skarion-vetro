@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { PROJECTS } from "@/lib/projects/p1-greenfield";
+import { PROJECTS } from "@/lib/projects";
 import { useDesignStore } from "@/lib/store";
 import Toolbar from "@/components/Toolbar";
 import SidePanel from "@/components/SidePanel";

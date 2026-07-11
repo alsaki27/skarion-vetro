@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { PROJECTS } from "@/lib/projects/p1-greenfield";
+import { PROJECTS } from "@/lib/projects";
 
 const UPCOMING = [
-  { id: "p2", title: "Project 2: Oakwood Underground", env: "Underground · Centralized" },
-  { id: "p3", title: "Project 3: Sunset Ridge Aerial", env: "Aerial · Distributed" },
-  { id: "p4", title: "Project 4: Split Architecture Lab", env: "Aerial · Centralized vs Distributed" },
-  { id: "p5", title: "Project 5: Splice Table Master", env: "LLD · Both" },
+  { id: "p4-split-lab", title: "Project 4: Split Architecture Lab", env: "Aerial · Centralized vs Distributed" },
+  { id: "p5-splice-master", title: "Project 5: Splice Table Master", env: "LLD · Both" },
+  { id: "p6-pole-loading", title: "Project 6: Pole Loading & Make-Ready", env: "Aerial · NESC Loading" },
+  { id: "p7-parkview", title: "Project 7: Parkview MDU", env: "Mixed · MDU" },
+  { id: "p8-westside", title: "Project 8: Westside Village HLD", env: "Mixed · Capstone" },
+  { id: "p9-riverside", title: "Project 9: Riverside Crossing", env: "Mixed · Capstone" },
 ];
 
 export default function Dashboard() {

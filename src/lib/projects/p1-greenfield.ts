@@ -103,6 +103,4 @@ export const p1Greenfield: ProjectFixture = {
   },
 };
 
-export const PROJECTS: Record<string, ProjectFixture> = {
-  [p1Greenfield.id]: p1Greenfield,
-};
+// PROJECTS moved to projects/index.ts — import from @/lib/projects
