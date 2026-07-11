@@ -1,0 +1,35 @@
+{
+  "template": "wilco-911-address-points-v1",
+  "publisher": "Williamson County, TX GIS (911 Addressing)",
+  "source_layer": "Address Points - Williamson County (ArcGIS Hub shapefile export)",
+  "description": "Source-to-canonical field mapping for Williamson County E911 address points. Any field not listed is DROPPED at intake. Restricted/noise fields listed explicitly so their exclusion is auditable. NOTE: ADDRESS_ID and SEGMENT_ID are unpopulated (0) in the 2024-11 county shapefile export, so GlobalID serves as the durable external key.",
+  "map": {
+    "GlobalID#2": { "target": "address_external_id",      "transform": "guid_str" },
+    "LABEL_NAME": { "target": "full_address",             "transform": "trim" },
+    "ADDR_NUMBE": { "target": "house_number",             "transform": "int_or_null" },
+    "ADDR_UNIT":  { "target": "unit",                     "transform": "trim_or_null" },
+    "RD_PREFIX":  { "target": "street_prefix",            "transform": "trim_or_null" },
+    "RD_NAME":    { "target": "street_name",              "transform": "trim_or_null" },
+    "RD_TYPE":    { "target": "street_type",              "transform": "trim_or_null" },
+    "RD_SUFFIX":  { "target": "street_suffix",            "transform": "trim_or_null" },
+    "RD_FULLNAM": { "target": "street_full",              "transform": "trim_or_null" },
+    "SEGMENT_ID": { "target": "road_segment_external_id", "transform": "int_str_or_null" },
+    "CITY":       { "target": "city",                     "transform": "trim_or_null" },
+    "ZIP":        { "target": "postal_code",              "transform": "int_str_or_null" },
+    "COUNTY":     { "target": "county",                   "transform": "trim_or_null" },
+    "ADDR_TYPE":  { "target": "address_type",             "transform": "trim_default_none" },
+    "STATUS":     { "target": "status",                   "transform": "status_normalize" },
+    "GlobalID":   { "target": "source_id",                "transform": "trim" },
+    "last_edi_1": { "target": "source_last_update",       "transform": "date_or_null" }
+  },
+  "status_normalize": {
+    "OPEN": "OPEN", "CLOSED": "CLOSED", "RETIRE": "RETIRE", "_default": "OTHER"
+  },
+  "restricted_dropped": [
+    "ADDR_NOTES", "SUPP_INFO", "created_us", "last_edite", "UPDATING_A", "ESN",
+    "UID", "UIDWC", "UIDGT", "UIDCP", "UIDLE", "COLLECTION"
+  ],
+  "derived": {
+    "parcel_external_id": "point-in-polygon join against the parcel fixture at intake (--parcels argument); null when outside"
+  }
+}

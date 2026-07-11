@@ -28,3 +28,32 @@ structure placement, drop/trespass validation) on real, recent residential
 parcels. Reference-only: students cannot edit parcel geometry or attributes.
 Do not commit the county-wide source ZIP to this repository; it belongs in
 object storage.
+
+---
+
+# Fixture: Williamson County E911 address points — clipped to L131725C parcels
+
+- **Publisher (authoritative source):** Williamson County, TX GIS (911 Addressing)
+- **Dataset:** "Address Points - Williamson County" (ArcGIS Hub shapefile export)
+- **Source file timestamp:** 2024-11-04; **downloaded:** 2026-07-11
+- **License:** Williamson County public GIS data (public records)
+- **CRS:** WGS 84 (EPSG:4326 / CRS84)
+- **Extraction:** `scripts/intake/extract_addresses.py` — bbox prefilter + point-in-polygon
+  against `parcels.geojson`, `--only-in-parcels`
+- **Feature count:** 557 address points (517 OPEN single-family; 37 CLOSED; 3 non-residential)
+- **Parcel linkage:** 100% — every address carries `parcel_external_id` derived at intake
+- **Known source limitations:** county `ADDRESS_ID` and `SEGMENT_ID` are unpopulated (0) in
+  this export → `GlobalID` is the durable key; `CITY` is coded "WC" (unincorporated
+  Williamson County) rather than "GEORGETOWN".
+
+## Field policy (privacy/noise)
+
+Dropped at extraction and never re-added: `ADDR_NOTES`, `SUPP_INFO`, editor identity
+fields (`created_us`, `last_edite`, `UPDATING_A`), E911 routing internals (`ESN`,
+`UID*`, `COLLECTION`).
+
+## Intended use
+
+Authoritative premise/demand layer for the Parkside Georgetown training project.
+`status = OPEN` + `address_type = SINGLE FAMILY` defines the serviceable premise
+candidate set; CLOSED/OPEN SPACE/UTILITIES points are context only.
