@@ -118,6 +118,7 @@ export const projects = pgTable("projects", {
   sortOrder: integer("sort_order").notNull().default(0),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 // ===========================================================================
@@ -163,6 +164,7 @@ export const designSnapshots = pgTable("design_snapshots", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 }, (table) => [
   index("idx_design_snapshots_project_user").on(table.projectId, table.userId, table.createdAt),
+  index("idx_design_snapshots_org_created").on(table.orgId, table.createdAt),
 ]);
 
 export const gradingResults = pgTable("grading_results", {
@@ -176,8 +178,10 @@ export const gradingResults = pgTable("grading_results", {
   categoryScores: jsonb("category_scores").notNull(),
   feedback: jsonb("feedback").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (table) => [
   index("idx_grading_results_project_user").on(table.projectId, table.userId, table.createdAt),
+  index("idx_grading_results_org_created").on(table.orgId, table.createdAt),
 ]);
 
 export const candidateProgress = pgTable("candidate_progress", {
@@ -192,6 +196,7 @@ export const candidateProgress = pgTable("candidate_progress", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
 }, (table) => [
   primaryKey({ columns: [table.userId, table.projectId] }),
+  index("idx_candidate_progress_org").on(table.orgId),
 ]);
 
 export const designAttempts = pgTable("design_attempts", {
@@ -205,6 +210,7 @@ export const designAttempts = pgTable("design_attempts", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 }, (table) => [
   index("idx_design_attempts_user_project").on(table.userId, table.projectId, table.createdAt),
+  index("idx_design_attempts_org_created").on(table.orgId, table.createdAt),
 ]);
 
 // ===========================================================================
@@ -285,7 +291,9 @@ export const aiSessions = pgTable("ai_sessions", {
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
   mode: text("mode", { enum: ["walkthrough", "hint", "review"] }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => [
+  index("idx_ai_sessions_org_created").on(table.orgId, table.createdAt),
+]);
 
 export const aiMessages = pgTable("ai_messages", {
   id: uuid("id").defaultRandom().primaryKey(),
