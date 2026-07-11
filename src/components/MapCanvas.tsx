@@ -8,6 +8,8 @@ import { useDesignStore } from "@/lib/store";
 import type { LngLat, NetworkElement, ProjectFixture } from "@/lib/types";
 import { isLineElement, isPointElement, type PointElement } from "@/lib/types";
 import { nearestPointElement } from "@/lib/geometry";
+import { BASEMAP_LAYER_STYLES, loadBasemapLayers } from "@/lib/basemap";
+import type { BasemapLayerName } from "@/lib/basemap";
 
 const SNAP_FT = 60;
 
@@ -48,8 +50,11 @@ const POINT_COLORS: Record<string, string> = {
   co: "#8b5cf6",
   pole: "#f59e0b",
   handhole: "#78716c",
+  flowerpot: "#d946ef",
+  vault: "#64748b",
   premise: "#22c55e",
   splitter: "#3b82f6",
+  mst: "#06b6d4",
   fdh_cabinet: "#ec4899",
   splice_closure: "#ef4444",
   terminal: "#14b8a6",
@@ -131,8 +136,80 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     );
     mapRef.current = map;
 
+    const addBasemapSources = () => {
+      // Load reference layer data. Uses project.referenceBasemap if provided,
+      // otherwise falls back to loading the real sample GeoJSON from public/.
+      const layers: [BasemapLayerName, GeoJSON.FeatureCollection | null][] = [
+        "EOP", "CL", "RW", "PARCEL", "BOUNDARY",
+      ].map((name) => {
+        const fc = project.referenceBasemap?.[name];
+        return [name as BasemapLayerName, fc ?? null];
+      });
+
+      // If no project reference basemap, load sample data asynchronously
+      if (!project.referenceBasemap) {
+        loadBasemapLayers().then((layerSet) => {
+          if (!mapRef.current) return;
+          for (const [name, fc] of Object.entries(layerSet)) {
+            const sourceId = `basemap-${name}`;
+            const source = mapRef.current.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+            if (source) {
+              source.setData(fc as GeoJSON.FeatureCollection);
+            } else {
+              try {
+                mapRef.current.addSource(sourceId, { type: "geojson", data: fc });
+                const style = BASEMAP_LAYER_STYLES[name as BasemapLayerName];
+                mapRef.current.addLayer({
+                  id: `basemap-layer-${name}`,
+                  type: "line",
+                  source: sourceId,
+                  layout: { visibility: "none" },
+                  paint: { "line-color": style.color, "line-width": style.width, "line-opacity": style.opacity },
+                } as maplibregl.AddLayerObject);
+              } catch { /* already exists */ }
+            }
+          }
+          // Ensure visibility matches store state
+          updateBasemapVisibility();
+        });
+        return; // exit early; sources will be added async
+      }
+
+      for (const [name, fc] of layers) {
+        if (!fc) continue;
+        const sourceId = `basemap-${name}`;
+        if (map.getSource(sourceId)) continue;
+        const style = BASEMAP_LAYER_STYLES[name];
+        map.addSource(sourceId, { type: "geojson", data: fc });
+        map.addLayer({
+          id: `basemap-layer-${name}`,
+          type: "line",
+          source: sourceId,
+          layout: { visibility: "none" },
+          paint: {
+            "line-color": style.color,
+            "line-width": style.width,
+            "line-opacity": style.opacity,
+          },
+        } as maplibregl.AddLayerObject);
+      }
+    };
+
+    const updateBasemapVisibility = () => {
+      const s = useDesignStore.getState();
+      for (const name of Object.keys(BASEMAP_LAYER_STYLES)) {
+        const visible = s.showBasemapCanvas && s.visibleBasemapLayers[name];
+        const layerId = `basemap-layer-${name}`;
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+        }
+      }
+    };
+
     const ensureLayers = () => {
       if (map.getSource("design-lines")) return;
+      // Basemap canvas layers go first (below design layers)
+      addBasemapSources();
       map.addSource("design-lines", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -175,6 +252,7 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           "circle-stroke-color": "#ffffff",
         },
       });
+      updateBasemapVisibility();
       syncData();
     };
 
@@ -242,9 +320,10 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       // point placement tools
       if (
         s.tool === "co" || s.tool === "pole" || s.tool === "handhole" ||
-        s.tool === "premise" || s.tool === "splitter" || s.tool === "fdh_cabinet" ||
-        s.tool === "splice_closure" || s.tool === "terminal" || s.tool === "riser" ||
-        s.tool === "slack_loop"
+        s.tool === "flowerpot" || s.tool === "vault" ||
+        s.tool === "premise" || s.tool === "splitter" || s.tool === "mst" ||
+        s.tool === "fdh_cabinet" || s.tool === "splice_closure" ||
+        s.tool === "terminal" || s.tool === "riser" || s.tool === "slack_loop"
       ) {
         s.addPoint(s.tool, pos);
       }
@@ -298,6 +377,43 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     if (!map) return;
     map.setStyle(BASEMAP_STYLES[basemap]);
   }, [basemap]);
+
+  // basemap canvas visibility toggle
+  const showBasemapCanvas = useDesignStore((s) => s.showBasemapCanvas);
+  const visibleBasemapLayers = useDesignStore((s) => s.visibleBasemapLayers);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    // Ensure sources exist after a style switch
+    const ensure = () => {
+      for (const name of Object.keys(BASEMAP_LAYER_STYLES)) {
+        const sourceId = `basemap-${name}`;
+        if (map.getSource(sourceId)) continue;
+        try {
+          const style = BASEMAP_LAYER_STYLES[name as BasemapLayerName];
+          map.addSource(sourceId, {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] },
+          });
+          map.addLayer({
+            id: `basemap-layer-${name}`,
+            type: "line",
+            source: sourceId,
+            layout: { visibility: showBasemapCanvas && visibleBasemapLayers[name] ? "visible" : "none" },
+            paint: { "line-color": style.color, "line-width": style.width, "line-opacity": style.opacity },
+          } as maplibregl.AddLayerObject);
+        } catch { /* already exists */ }
+      }
+    };
+    ensure();
+    for (const name of Object.keys(BASEMAP_LAYER_STYLES)) {
+      const layerId = `basemap-layer-${name}`;
+      const visible = showBasemapCanvas && visibleBasemapLayers[name];
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+      }
+    }
+  }, [showBasemapCanvas, visibleBasemapLayers]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

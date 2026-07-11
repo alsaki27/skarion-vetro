@@ -14,10 +14,13 @@ const TOOLS: ToolDef[] = [
   { tool: "select", label: "Select", icon: "☝️" },
   { tool: "pole", label: "Pole", icon: "📍", environments: ["aerial", "mixed"] },
   { tool: "handhole", label: "Handhole", icon: "⬛", environments: ["underground", "mixed"] },
+  { tool: "flowerpot", label: "Flowerpot", icon: "🌸", environments: ["underground", "mixed"] },
+  { tool: "vault", label: "Vault", icon: "🏦", environments: ["underground", "mixed"] },
   { tool: "cable", label: "Cable", icon: "➖" },
   { tool: "conduit", label: "Conduit", icon: "🚇", environments: ["underground", "mixed"] },
   { tool: "drop_cable", label: "Drop", icon: "↘️" },
   { tool: "splitter", label: "Splitter", icon: "🔀" },
+  { tool: "mst", label: "MST", icon: "📡" },
   { tool: "fdh_cabinet", label: "FDH", icon: "🗄️" },
   { tool: "splice_closure", label: "Closure", icon: "📦" },
   { tool: "riser", label: "Riser", icon: "⬆️", environments: ["mixed"] },
@@ -33,6 +36,10 @@ export default function Toolbar({ project }: { project: ProjectFixture }) {
   const canUndo = useDesignStore((s) => s.past.length > 0);
   const canRedo = useDesignStore((s) => s.future.length > 0);
   const drafting = useDesignStore((s) => s.draftPath.length > 0);
+  const showBasemapCanvas = useDesignStore((s) => s.showBasemapCanvas);
+  const setBasemapCanvasVisible = useDesignStore((s) => s.setBasemapCanvasVisible);
+  const toggleBasemapLayer = useDesignStore((s) => s.toggleBasemapLayer);
+  const visibleBasemapLayers = useDesignStore((s) => s.visibleBasemapLayers);
 
   const visible = TOOLS.filter(
     (t) => !t.environments || t.environments.includes(project.environment),
@@ -83,6 +90,32 @@ export default function Toolbar({ project }: { project: ProjectFixture }) {
       >
         {basemap === "satellite" ? "🛰️ Satellite" : "🗺️ Streets"}
       </button>
+
+      <button
+        onClick={() => setBasemapCanvasVisible(!showBasemapCanvas)}
+        className={`rounded px-2 py-1 text-xs ${
+          showBasemapCanvas ? "bg-blue-600 text-white" : "text-zinc-300 hover:bg-zinc-800"
+        }`}
+        title="Toggle CAD basemap layers (EOP/CL/RW/Parcel)"
+      >
+        🗺️ Basemap
+      </button>
+
+      {showBasemapCanvas && (
+        <div className="flex gap-0.5">
+          {Object.entries(visibleBasemapLayers).map(([layer, visible]) => (
+            <button
+              key={layer}
+              onClick={() => toggleBasemapLayer(layer)}
+              className={`rounded px-1.5 py-0.5 text-[10px] ${
+                visible ? "bg-zinc-700 text-zinc-200" : "bg-zinc-800 text-zinc-600"
+              }`}
+            >
+              {layer}
+            </button>
+          ))}
+        </div>
+      )}
 
       {drafting && (
         <span className="ml-auto rounded bg-yellow-600/20 px-2 py-1 text-xs text-yellow-400">
