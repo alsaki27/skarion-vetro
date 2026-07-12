@@ -62,6 +62,7 @@ function ProjectTab({ projectId }: { projectId: string }) {
 
 function IssuesTab() {
   const grading = useDesignStore((s) => s.grading);
+  const select = useDesignStore((s) => s.select);
   if (!grading) {
     return (
       <div className="text-xs text-zinc-500">
@@ -69,22 +70,50 @@ function IssuesTab() {
       </div>
     );
   }
-  const fails = grading.checks.filter((c) => c.status === "fail");
-  if (fails.length === 0) {
+  const issues = grading.checks.filter((c) => c.status !== "pass");
+  if (issues.length === 0) {
     return (
       <div className="text-xs text-green-400">
         All checks passed! Great work.
       </div>
     );
   }
+  const bySeverity = {
+    fail: issues.filter((c) => c.status === "fail"),
+    warn: issues.filter((c) => c.status === "warn"),
+    info: issues.filter((c) => c.status === "info"),
+    not_evaluated: issues.filter((c) => c.status === "not_evaluated"),
+  };
   return (
     <div className="space-y-2">
-      {fails.map((c) => (
-        <div key={c.checkId} className="rounded bg-red-950/30 p-2 text-xs">
-          <div className="font-medium text-red-300">{c.checkId}</div>
-          <div className="text-zinc-400">{c.message}</div>
-        </div>
-      ))}
+      {(["fail", "warn", "info", "not_evaluated"] as const).map((sev) => {
+        const items = bySeverity[sev];
+        if (items.length === 0) return null;
+        const colors: Record<string, string> = {
+          fail: "bg-red-950/30 border-red-800/50 text-red-300",
+          warn: "bg-yellow-950/30 border-yellow-800/50 text-yellow-300",
+          info: "bg-blue-950/30 border-blue-800/50 text-blue-300",
+          not_evaluated: "bg-zinc-900/50 border-zinc-700/50 text-zinc-500",
+        };
+        return (
+          <div key={sev} className="space-y-1">
+            <div className="text-[10px] font-semibold uppercase text-zinc-500">{sev} ({items.length})</div>
+            {items.map((c) => (
+              <button
+                key={c.checkId}
+                onClick={() => { const ids = c.elementIds; if (ids?.length) select(ids[0]); }}
+                className={`w-full text-left rounded border p-2 text-xs ${colors[sev]} hover:opacity-80 transition-opacity`}
+              >
+                <div className="font-medium">{c.checkId}</div>
+                <div className="opacity-75">{c.message}</div>
+                {c.elementIds && c.elementIds.length > 0 && (
+                  <div className="text-[10px] opacity-50 mt-0.5">{c.elementIds.length} element(s) — click to select</div>
+                )}
+              </button>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
