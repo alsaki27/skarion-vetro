@@ -27,7 +27,8 @@ export function RightPanel() {
   const basemapData = useDesignStore((s) => s.basemapData);
   const selectedBasemapFeature = useDesignStore((s) => s.selectedBasemapFeature);
   const selectBasemapFeature = useDesignStore((s) => s.selectBasemapFeature);
-  const [activeTab, setActiveTab] = useDesignStore((s) => [s.inspectorTab, s.setInspectorTab]);
+  const activeTab = useDesignStore((s) => s.inspectorTab);
+  const setActiveTab = useDesignStore((s) => s.setInspectorTab);
 
   const selected = selectedId ? elements[selectedId] : null;
   const selectedBasemap = selectedBasemapFeature?.feature ?? null;

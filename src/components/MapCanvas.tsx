@@ -155,6 +155,14 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           addressesRes.json(),
         ]);
         if (cancelled) return;
+        if (process.env.NODE_ENV !== "production") {
+          const dc = (globalThis as Record<string, unknown>).__debugCalls as Record<string, unknown> | undefined;
+          if (dc) {
+            dc.setBasemapData = ((dc.setBasemapData as number) ?? 0) + 1;
+            dc.setBasemapParcels = (parcelsJson.features as Array<unknown>).length;
+            dc.setBasemapAddresses = (addressesJson.features as Array<unknown>).length;
+          }
+        }
         setBasemapData({
           parcels: parcelsJson.features ?? [],
           addresses: addressesJson.features ?? [],
@@ -198,6 +206,7 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     // Only in dev/test — absent from production bundles.
     if (process.env.NODE_ENV !== "production") {
       (globalThis as Record<string, unknown>).__mapDebug = map;
+      (globalThis as Record<string, unknown>).__debugCalls = { ensureLayers: 0, setBasemapData: 0 };
     }
 
     const addBasemapSources = () => {
@@ -502,6 +511,24 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     };
 
     const ensureLayers = () => {
+      if (process.env.NODE_ENV !== "production") {
+        const dc = (globalThis as Record<string, unknown>).__debugCalls as Record<string, unknown> | undefined;
+        if (dc) {
+          dc.ensureLayers = ((dc.ensureLayers as number) ?? 0) + 1;
+          dc.lastBasemapData = basemapData ? "set" : "null";
+          // After adding sources/layers, snapshot the map's style sources
+          try {
+            const sty = map.getStyle() as Record<string, unknown>;
+            if (sty?.sources) (dc as Record<string, unknown>).sourceCount = Object.keys(sty.sources as Record<string, unknown>).length;
+            if (sty?.layers) (dc as Record<string, unknown>).layerCount = (sty.layers as Array<unknown>).length;
+            (dc as Record<string, unknown>).hasWorkspaceParcels = sty?.sources ? "workspace-parcels" in (sty.sources as Record<string, unknown>) : false;
+            // Also check getSource directly for cross-reference
+            try {
+              (dc as Record<string, unknown>).getSourceParcels = map.getSource("workspace-parcels") != null;
+            } catch { (dc as Record<string, unknown>).getSourceParcels = false; }
+          } catch { /* ignore */ }
+        }
+      }
       if (!basemapData) {
         return;
       }
