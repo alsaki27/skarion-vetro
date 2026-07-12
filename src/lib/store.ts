@@ -55,6 +55,7 @@ interface DesignState {
   refAddressesVisible: boolean;
   /** Service groups for the HLD-02 workflow */
   serviceGroups: Record<string, ServiceGroup>;
+  closureServiceSets: Record<string, { id: string; closureId: string; premiseId: string; serviceGroupId: string; mstId: string }>;
   /** LLD mode (splice table): unlocked after HLD gate pass */
   lldMode: boolean;
   /** In-progress line draw: vertices placed so far */
@@ -100,6 +101,9 @@ interface DesignState {
   createServiceGroup: (name: string, premiseIds: string[], color: string) => string;
   setGroupMstSize: (groupId: string, size: 4 | 6 | 8) => void;
   deleteServiceGroup: (groupId: string) => void;
+  // Closure service set actions
+  createClosureServiceSet: (closureId: string, premiseId: string, serviceGroupId: string, mstId: string) => string;
+  deleteClosureServiceSet: (setId: string) => void;
 }
 
 const MAX_HISTORY = 50;
@@ -142,6 +146,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   refParcelsVisible: true,
   refAddressesVisible: true,
   serviceGroups: {},
+  closureServiceSets: {},
   lldMode: false,
   draftPath: [],
   draftStartElementId: null,
@@ -383,5 +388,22 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     set((s) => {
       const { [groupId]: _, ...rest } = s.serviceGroups;
       return { serviceGroups: rest };
+    }),
+
+  createClosureServiceSet: (closureId, premiseId, serviceGroupId, mstId) => {
+    const id = crypto.randomUUID();
+    set((s) => ({
+      closureServiceSets: {
+        ...s.closureServiceSets,
+        [id]: { id, closureId, premiseId, serviceGroupId, mstId },
+      },
+    }));
+    return id;
+  },
+
+  deleteClosureServiceSet: (setId) =>
+    set((s) => {
+      const { [setId]: _, ...rest } = s.closureServiceSets;
+      return { closureServiceSets: rest };
     }),
 }));

@@ -6,8 +6,9 @@ import { LayersPanel } from "./LayersPanel";
 import { DataCatalogPanel } from "./DataCatalogPanel";
 import { StudyAreaSelector } from "./StudyAreaSelector";
 import { ServiceGroupPanel } from "./ServiceGroupPanel";
+import { TopologyTrace } from "./TopologyTrace";
 
-type LeftTab = "layers" | "catalog" | "project" | "issues" | "groups";
+type LeftTab = "layers" | "catalog" | "project" | "issues" | "groups" | "trace";
 
 export function LeftPanel({ projectId }: { projectId: string }) {
   const [tab, setTab] = useState<LeftTab>("layers");
@@ -18,6 +19,7 @@ export function LeftPanel({ projectId }: { projectId: string }) {
     { id: "project", label: "Project" },
     { id: "issues", label: "Issues" },
     { id: "groups", label: "Groups" },
+    { id: "trace", label: "Trace" },
   ];
 
   return (
@@ -43,6 +45,7 @@ export function LeftPanel({ projectId }: { projectId: string }) {
         {tab === "project" && <ProjectTab projectId={projectId} />}
         {tab === "issues" && <IssuesTab />}
         {tab === "groups" && <ServiceGroupPanel />}
+        {tab === "trace" && <TopologyTrace />}
       </div>
     </div>
   );
