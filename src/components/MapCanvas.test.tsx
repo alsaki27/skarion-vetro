@@ -20,6 +20,9 @@ const mockMap = {
   on: vi.fn((ev: string, handler: (...args: unknown[]) => void) => {
     mockEventHandlers.set(ev, handler);
   }),
+  once: vi.fn((ev: string, handler: (...args: unknown[]) => void) => {
+    mockEventHandlers.set(`once:${ev}`, handler);
+  }),
   off: vi.fn(),
   getCanvas: () => ({ style: { cursor: "" } }),
   getSource: mockGetSource,

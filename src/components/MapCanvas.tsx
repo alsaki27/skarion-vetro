@@ -194,6 +194,11 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     // Strict Mode's double-invoke (mount-unmount-remount).
     initialBasemapRef.current = useDesignStore.getState().basemap;
     mapRef.current = map;
+    // Expose the map instance for Playwright/DevTools introspection.
+    // Only in dev/test — absent from production bundles.
+    if (process.env.NODE_ENV !== "production") {
+      (globalThis as Record<string, unknown>).__mapDebug = map;
+    }
 
     const addBasemapSources = () => {
       // Load reference layer data. Uses project.referenceBasemap if provided,
@@ -631,11 +636,22 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       );
     };
 
-    // Only gate the immediate paint; always register the retry listener.
-    if (map.isStyleLoaded()) {
+    // isStyleLoaded() stays false while raster TILES are still streaming
+    // (potentially 10+ s on the Esri source), long after the style JSON is
+    // ready. "styledata" never fires again after initial load and "load"
+    // fires exactly once — both can pre-date this effect's re-run when
+    // basemapData arrives, leaving a dead window where layers are never
+    // added. "idle" is guaranteed to fire once the map settles, so re-arm
+    // on it until the style reports ready.
+    const tryEnsureLayers = () => {
+      if (!map.isStyleLoaded()) {
+        map.once("idle", tryEnsureLayers);
+        return;
+      }
       ensureLayers();
-      syncParcelLabels(hoveredParcelIdRef.current, selectedBasemapFeature);
-    }
+      syncParcelLabels(hoveredParcelIdRef.current, useDesignStore.getState().selectedBasemapFeature);
+    };
+    tryEnsureLayers();
 
     const handleMove = (ev: maplibregl.MapMouseEvent) => {
       if (!basemapData) return;
@@ -674,6 +690,7 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       map.off("mouseleave", handleLeave);
       map.off("styledata", handleStyleRefresh);
       map.off("load", handleStyleRefresh);
+      map.off("idle", tryEnsureLayers);
     };
   }, [basemapData, selectedBasemapFeature]);
 
