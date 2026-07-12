@@ -271,6 +271,8 @@ export interface ProjectFixture {
   orgId: string;
   /** Parcel IDs considered "in service" for trespass and coverage checks (Parkside Georgetown) */
   serviceableParcelIds?: string[];
+  /** Project boundary polygon in WGS84 — required when basemapId is set */
+  boundary?: GeoJSON.Polygon;
 }
 
 export type BasemapLayerKind = "parcels" | "addresses";
@@ -295,7 +297,7 @@ export interface BasemapDataset {
 // ---------------------------------------------------------------------------
 // Grading types (plan §3 — check registry shared by grader and AI tutor)
 
-export type CheckStatus = "pass" | "warn" | "fail";
+export type CheckStatus = "pass" | "warn" | "fail" | "not_evaluated" | "info";
 
 export interface CheckResult {
   checkId: string;

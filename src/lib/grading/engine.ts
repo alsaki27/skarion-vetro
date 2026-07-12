@@ -708,6 +708,66 @@ const trespass: CheckDef = {
   },
 };
 
+const element_outside_boundary: CheckDef = {
+  id: "element_outside_boundary",
+  category: "compliance",
+  run(ctx) {
+    const boundary = ctx.project.boundary;
+    if (!boundary) {
+      return { checkId: "element_outside_boundary", category: "compliance", status: "not_evaluated", score: 100, message: "No project boundary defined." };
+    }
+    const outside: string[] = [];
+    for (const p of ctx.points) {
+      try {
+        if (!booleanPointInPolygon(point(p.position), boundary)) {
+          outside.push(p.id);
+        }
+      } catch { /* skip malformed geometry */ }
+    }
+    const score = outside.length === 0 ? 100 : Math.max(0, 100 - outside.length * 5);
+    return {
+      checkId: "element_outside_boundary",
+      category: "compliance",
+      status: outside.length === 0 ? "pass" : "warn",
+      score,
+      message: outside.length === 0 ? "All points within project boundary." : `${outside.length} element(s) outside boundary.`,
+      elementIds: outside,
+    };
+  },
+};
+
+const boundary_crossing_unmarked: CheckDef = {
+  id: "boundary_crossing_unmarked",
+  category: "compliance",
+  run(ctx) {
+    const boundary = ctx.project.boundary;
+    if (!boundary) {
+      return { checkId: "boundary_crossing_unmarked", category: "compliance", status: "not_evaluated", score: 100, message: "No project boundary defined." };
+    }
+    const crossings: string[] = [];
+    for (const line of ctx.lines) {
+      if (line.path.length < 2) continue;
+      for (let i = 0; i < line.path.length - 1; i++) {
+        try {
+          if (booleanIntersects(lineString([line.path[i], line.path[i + 1]]), boundary)) {
+            crossings.push(line.id);
+            break;
+          }
+        } catch { /* skip */ }
+      }
+    }
+    const score = crossings.length === 0 ? 100 : 95;
+    return {
+      checkId: "boundary_crossing_unmarked",
+      category: "compliance",
+      status: crossings.length === 0 ? "pass" : "info",
+      score,
+      message: crossings.length === 0 ? "All routes within boundary." : `${crossings.length} line(s) cross the project boundary.`,
+      elementIds: crossings,
+    };
+  },
+};
+
 export const CHECK_REGISTRY: Record<string, CheckDef> = {
   coverage,
   connectivity,
@@ -727,6 +787,8 @@ export const CHECK_REGISTRY: Record<string, CheckDef> = {
   split_ratio_valid,
   fiber_assignment_complete,
   trespass,
+  element_outside_boundary,
+  boundary_crossing_unmarked,
 };
 
 // ---------------------------------------------------------------------------

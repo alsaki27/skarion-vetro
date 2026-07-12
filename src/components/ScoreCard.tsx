@@ -2,7 +2,9 @@
 
 import type { GradingResult } from "@/lib/types";
 
-const STATUS_ICON = { pass: "✅", warn: "⚠️", fail: "❌" } as const;
+import type { CheckStatus } from "@/lib/types";
+
+const STATUS_ICON: Record<CheckStatus, string> = { pass: "✅", warn: "⚠️", fail: "❌", not_evaluated: "—", info: "ℹ️" };
 
 export default function ScoreCard({ grading }: { grading: GradingResult | null }) {
   if (!grading) {

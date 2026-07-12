@@ -116,5 +116,9 @@ export const p10ParksideGeorgetown: ProjectFixture = {
   // parcel/address layer routes 404 without an org match — every fixture
   // that serves a real basemap must set this or its layers are unreachable.
   orgId: DEV_ORG_ID,
+  boundary: {
+    type: "Polygon",
+    coordinates: [[[-97.77245, 30.59890], [-97.76645, 30.59890], [-97.76645, 30.60218], [-97.77245, 30.60218], [-97.77245, 30.59890]]],
+  },
   serviceableParcelIds,
 };
