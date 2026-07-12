@@ -8,6 +8,7 @@ export function WorkspaceStatusBar() {
   const grading = useDesignStore((s) => s.grading);
   const selectedBasemapFeature = useDesignStore((s) => s.selectedBasemapFeature);
   const basemapData = useDesignStore((s) => s.basemapData);
+  const draftPath = useDesignStore((s) => s.draftPath);
 
   const selected = selectedId ? elements[selectedId] : null;
   const issueCount = grading?.checks.filter((c) => c.status === "fail").length ?? 0;
@@ -39,6 +40,15 @@ export function WorkspaceStatusBar() {
       )}
       <span className="ml-auto text-zinc-600">
         parcels {basemapData?.parcels?.length ?? "—"} · addresses {basemapData?.addresses?.length ?? "—"}
+        {draftPath.length > 1 && (() => {
+          let ft = 0;
+          for (let i = 1; i < draftPath.length; i++) {
+            const dx = (draftPath[i][0] - draftPath[i - 1][0]) * 364000;
+            const dy = (draftPath[i][1] - draftPath[i - 1][1]) * 364000;
+            ft += Math.sqrt(dx * dx + dy * dy);
+          }
+          return <span className="ml-2 text-amber-400">{Math.round(ft)} ft</span>;
+        })()}
       </span>
     </div>
   );

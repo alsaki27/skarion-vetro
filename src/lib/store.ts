@@ -21,6 +21,12 @@ export type Tool =
 
 export type Basemap = "satellite" | "streets";
 
+export const ROUTE_STYLES: Record<string, { color: string; width: number; label: string }> = {
+  cable: { color: "#f59e0b", width: 2.5, label: "Feeder Cable" },
+  conduit: { color: "#3b82f6", width: 2, label: "Conduit" },
+  drop_cable: { color: "#22c55e", width: 1.5, label: "Drop Cable" },
+};
+
 export interface ServiceGroup {
   id: string;
   name: string;

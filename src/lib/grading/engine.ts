@@ -821,6 +821,42 @@ const unassigned_premise: CheckDef = {
   },
 };
 
+const route_endpoint_invalid: CheckDef = {
+  id: "route_endpoint_invalid",
+  category: "hld",
+  run(ctx) {
+    const lines = ctx.lines;
+    const invalid: string[] = [];
+    const VALID_ENDPOINTS = new Set([
+      "co", "pole", "handhole", "flowerpot", "vault", "mst",
+      "fdh_cabinet", "splice_closure", "splitter",
+    ]);
+    const validEndpoints = new Set<string>();
+    for (const p of ctx.points) {
+      if (VALID_ENDPOINTS.has(p.type)) validEndpoints.add(p.id);
+    }
+    for (const line of lines) {
+      if (line.startElementId && !validEndpoints.has(line.startElementId)) {
+        if (!invalid.includes(line.id)) invalid.push(line.id);
+      }
+      if (line.endElementId && !validEndpoints.has(line.endElementId)) {
+        if (!invalid.includes(line.id)) invalid.push(line.id);
+      }
+    }
+    const score = invalid.length === 0 ? 100 : Math.max(0, 100 - invalid.length * 10);
+    return {
+      checkId: "route_endpoint_invalid",
+      category: "hld",
+      status: invalid.length === 0 ? "pass" : "warn",
+      score,
+      message: invalid.length === 0
+        ? "All routes connect to valid endpoints."
+        : `${invalid.length} route(s) have invalid endpoints.`,
+      elementIds: invalid,
+    };
+  },
+};
+
 export const CHECK_REGISTRY: Record<string, CheckDef> = {
   coverage,
   connectivity,
@@ -843,6 +879,7 @@ export const CHECK_REGISTRY: Record<string, CheckDef> = {
   element_outside_boundary,
   boundary_crossing_unmarked,
   unassigned_premise,
+  route_endpoint_invalid,
 };
 
 // ---------------------------------------------------------------------------
