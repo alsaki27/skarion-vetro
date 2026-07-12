@@ -5,8 +5,9 @@ import { useDesignStore } from "@/lib/store";
 import { LayersPanel } from "./LayersPanel";
 import { DataCatalogPanel } from "./DataCatalogPanel";
 import { StudyAreaSelector } from "./StudyAreaSelector";
+import { ServiceGroupPanel } from "./ServiceGroupPanel";
 
-type LeftTab = "layers" | "catalog" | "project" | "issues";
+type LeftTab = "layers" | "catalog" | "project" | "issues" | "groups";
 
 export function LeftPanel({ projectId }: { projectId: string }) {
   const [tab, setTab] = useState<LeftTab>("layers");
@@ -16,6 +17,7 @@ export function LeftPanel({ projectId }: { projectId: string }) {
     { id: "catalog", label: "Data Catalog" },
     { id: "project", label: "Project" },
     { id: "issues", label: "Issues" },
+    { id: "groups", label: "Groups" },
   ];
 
   return (
@@ -40,6 +42,7 @@ export function LeftPanel({ projectId }: { projectId: string }) {
         {tab === "catalog" && <DataCatalogPanel projectId={projectId} />}
         {tab === "project" && <ProjectTab projectId={projectId} />}
         {tab === "issues" && <IssuesTab />}
+        {tab === "groups" && <ServiceGroupPanel />}
       </div>
     </div>
   );

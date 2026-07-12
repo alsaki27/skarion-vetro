@@ -21,6 +21,15 @@ export type Tool =
 
 export type Basemap = "satellite" | "streets";
 
+export interface ServiceGroup {
+  id: string;
+  name: string;
+  color: string;
+  premiseIds: string[];
+  mstSize: 4 | 6 | 8;
+  mstElementId?: string;
+}
+
 interface DesignState {
   elements: Record<string, NetworkElement>;
   selectedId: string | null;
@@ -38,6 +47,8 @@ interface DesignState {
   /** Reference layer visibility toggles */
   refParcelsVisible: boolean;
   refAddressesVisible: boolean;
+  /** Service groups for the HLD-02 workflow */
+  serviceGroups: Record<string, ServiceGroup>;
   /** LLD mode (splice table): unlocked after HLD gate pass */
   lldMode: boolean;
   /** In-progress line draw: vertices placed so far */
@@ -79,6 +90,10 @@ interface DesignState {
   setGrading: (g: GradingResult | null) => void;
   undo: () => void;
   redo: () => void;
+  // Service group actions
+  createServiceGroup: (name: string, premiseIds: string[], color: string) => string;
+  setGroupMstSize: (groupId: string, size: 4 | 6 | 8) => void;
+  deleteServiceGroup: (groupId: string) => void;
 }
 
 const MAX_HISTORY = 50;
@@ -120,6 +135,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   selectedBasemapFeature: null,
   refParcelsVisible: true,
   refAddressesVisible: true,
+  serviceGroups: {},
   lldMode: false,
   draftPath: [],
   draftStartElementId: null,
@@ -337,5 +353,29 @@ export const useDesignStore = create<DesignState>((set, get) => ({
         future: s.future.slice(1),
         selectedId: null,
       };
+    }),
+
+  createServiceGroup: (name, premiseIds, color) => {
+    const id = crypto.randomUUID();
+    set((s) => ({
+      serviceGroups: {
+        ...s.serviceGroups,
+        [id]: { id, name, color, premiseIds, mstSize: 6 as const },
+      },
+    }));
+    return id;
+  },
+
+  setGroupMstSize: (groupId, size) =>
+    set((s) => {
+      const g = s.serviceGroups[groupId];
+      if (!g) return s;
+      return { serviceGroups: { ...s.serviceGroups, [groupId]: { ...g, mstSize: size } } };
+    }),
+
+  deleteServiceGroup: (groupId) =>
+    set((s) => {
+      const { [groupId]: _, ...rest } = s.serviceGroups;
+      return { serviceGroups: rest };
     }),
 }));
