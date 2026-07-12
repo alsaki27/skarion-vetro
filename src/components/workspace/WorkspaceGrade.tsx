@@ -16,6 +16,7 @@ export function WorkspaceGrade({ project, onClose }: { project: ProjectFixture; 
   const [result, setResult] = useState<GradeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setGrading = useDesignStore((s) => s.setGrading);
 
   const submit = async () => {
     setLoading(true);
@@ -28,9 +29,18 @@ export function WorkspaceGrade({ project, onClose }: { project: ProjectFixture; 
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ projectId: project.id, elements }),
       });
-      const data = await res.json() as GradeResponse & { error?: string };
+      const data = await res.json() as GradeResponse & { error?: string; categories?: { name: string; weight: number; score: number; status: string }[]; gradedAt?: string };
       if (data.error) { setError(data.error); return; }
       setResult(data);
+      // Populate the shared grading store so the Issues tab can read results
+      setGrading({
+        totalScore: data.totalScore,
+        isPassing: data.isPassing,
+        passThreshold: data.passThreshold,
+        categories: (data.categories ?? []).map((c) => ({ name: c.name, weight: c.weight, score: c.score, status: c.status as "pass" | "fail" | "warn" | "info" | "not_evaluated" })),
+        checks: data.checks.map((c) => ({ checkId: c.checkId, category: c.category, status: c.status as "pass" | "fail" | "warn" | "info" | "not_evaluated", score: c.score, message: c.message, elementIds: (c as { elementIds?: string[] }).elementIds ?? [] })),
+        gradedAt: data.gradedAt ?? new Date().toISOString(),
+      });
     } catch (e) { setError(String(e)); }
     finally { setLoading(false); }
   };

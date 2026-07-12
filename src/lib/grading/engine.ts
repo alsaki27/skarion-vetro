@@ -641,7 +641,28 @@ const trespass: CheckDef = {
       };
     }
 
-    const serviceableSet = new Set(ctx.project.serviceableParcelIds ?? []);
+    // Derive serviceable parcel set. When the project has a defined boundary
+    // polygon AND we have basemap address data, compute it from addresses
+    // inside the boundary that are OPEN + SINGLE FAMILY. Otherwise fall back
+    // to the hand-flagged fixture set (for projects without boundary).
+    let serviceableSet = new Set(ctx.project.serviceableParcelIds ?? []);
+    if (ctx.project.boundary && ctx.basemapData?.addresses?.length) {
+      const derivedIds = new Set<string>();
+      for (const addr of ctx.basemapData.addresses) {
+        const p = addr.properties as Record<string, unknown>;
+        if (p.status !== "OPEN" || p.address_type !== "SINGLE FAMILY") continue;
+        try {
+          // Check if address point is inside the boundary polygon
+          const coords = (addr.geometry as GeoJSON.Point).coordinates;
+          if (booleanPointInPolygon(point(coords), ctx.project.boundary)) {
+            const parcelId = String(p.parcel_external_id ?? "");
+            if (parcelId) derivedIds.add(parcelId);
+          }
+        } catch { /* skip malformed geometry */ }
+      }
+      if (derivedIds.size > 0) serviceableSet = derivedIds;
+    }
+
     const violations: { lineId: string; parcelId: string }[] = [];
 
     for (const line of ctx.lines) {

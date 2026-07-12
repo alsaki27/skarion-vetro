@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { p1Greenfield } from "@/lib/projects/p1-greenfield";
 import { runGrading } from "@/lib/grading/engine";
+import { loadAddresses, loadParcels } from "@/lib/basemap-loader";
 import type { LngLat, NetworkElement } from "@/lib/types";
 import { isPointElement } from "@/lib/types";
+import { p10ParksideGeorgetown } from "@/lib/projects/p10-parkside-georgetown";
 
 function pos(id: string): LngLat {
   const el = p1Greenfield.preloadedElements.find((e) => e.id === id);
@@ -143,5 +145,64 @@ describe("grading gate logic", () => {
   it("all gate checks present on a valid design", () => {
     const gateResultChecks = gateResult.checks.filter((c) => GATE_IDS.has(c.checkId));
     expect(gateResultChecks.length).toBeGreaterThan(0);
+  });
+});
+
+describe("boundary-derived demand and checks", () => {
+  const boundary = p10ParksideGeorgetown.boundary;
+  const addresses = loadAddresses("wilco-l131725c").valid;
+
+  it("boundary exists on Parkside fixture", () => {
+    expect(boundary).toBeDefined();
+    expect(boundary!.type).toBe("Polygon");
+  });
+
+  it("derived serviceable parcel set from boundary + OPEN + SINGLE FAMILY", () => {
+    if (!boundary) return; // skip if boundary not defined
+    const { booleanPointInPolygon, point } = require("@turf/turf");
+    const insideIds = new Set<string>();
+
+    for (const addr of addresses) {
+      const p = addr.properties as Record<string, unknown>;
+      if (p.status !== "OPEN" || p.address_type !== "SINGLE FAMILY") continue;
+      try {
+        const coords = (addr.geometry as GeoJSON.Point).coordinates;
+        if (booleanPointInPolygon(point(coords), boundary)) {
+          const parcelId = String(p.parcel_external_id ?? "");
+          if (parcelId) insideIds.add(parcelId);
+        }
+      } catch { /* skip */ }
+    }
+    expect(insideIds.size).toBeGreaterThan(0);
+    // The bounding-box boundary is a rough rectangle around the pocket;
+    // it includes some premises on adjacent streets not in the original
+    // 51-premise hand-picked set. Tightening to exactly the 3-street
+    // pocket requires a manual polygon — the important property is that
+    // the derived set is a stable, non-zero superset.
+    expect(insideIds.size).toBeGreaterThanOrEqual(51);
+    expect(insideIds.size).toBeLessThanOrEqual(80);
+  });
+
+  it("element_outside_boundary fires with Parkside basemap", () => {
+    if (!boundary) return;
+    const parcels = loadParcels("wilco-l131725c").valid;
+    const addressesData = loadAddresses("wilco-l131725c").valid;
+
+    const outsidePoint = {
+      id: "test-outside",
+      type: "premise" as const,
+      locked: false,
+      label: "Outside premise",
+      position: [-97.8, 30.62] as [number, number], // well outside the boundary
+      attributes: {},
+    };
+
+    const basemap = { parcels, addresses: addressesData };
+    const elements = [...p10ParksideGeorgetown.preloadedElements, outsidePoint];
+    const result = runGrading(p10ParksideGeorgetown, elements, basemap);
+
+    const check = result.checks.find((c) => c.checkId === "element_outside_boundary");
+    expect(check).toBeDefined();
+    expect(check!.elementIds).toContain("test-outside");
   });
 });
