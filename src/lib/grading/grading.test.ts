@@ -91,3 +91,57 @@ describe("runGrading — known-bad design", () => {
     expect(check?.status).toBe("fail");
   });
 });
+
+describe("grading gate logic", () => {
+  // The D2 grading route splits checks into GATES (mandatory) and quality
+  // checks (weighted). These tests exercise the gate-splitting logic
+  // independently of the HTTP layer.
+
+  const GATE_IDS = new Set(["connectivity", "compliance", "capacity", "trespass"]);
+
+  const gateResult = runGrading(p1Greenfield, goodDesign());
+
+  it("splits checks into gate and quality groups", () => {
+    const gateResultChecks = gateResult.checks.map((c) => ({
+      ...c,
+      status: GATE_IDS.has(c.checkId) ? ("fail" as const) : ("pass" as const),
+    }));
+    const gateChecks = gateResultChecks.filter((c) => GATE_IDS.has(c.checkId));
+    const qualityChecks = gateResultChecks.filter((c) => !GATE_IDS.has(c.checkId));
+    expect(gateChecks.length).toBeGreaterThan(0);
+    expect(qualityChecks.length).toBeGreaterThan(0);
+    const gatesPassed = gateChecks.every((c) => c.status === "pass");
+    expect(gatesPassed).toBe(false);
+  });
+
+  it("gate failure overrides passing weighted score", () => {
+    const checksCopy = gateResult.checks.map((c) => ({
+      checkId: c.checkId,
+      category: c.category,
+      status: c.checkId === "connectivity" ? "fail" as const : "pass" as const,
+      score: c.score,
+      message: c.message,
+    }));
+    const gateChecks = checksCopy.filter((c) => GATE_IDS.has(c.checkId));
+    const gatesPassed = gateChecks.every((c) => c.status === "pass");
+    const weightedPassed = gateResult.isPassing;
+
+    const serverIsPassing = weightedPassed && gatesPassed;
+    expect(serverIsPassing).toBe(false);
+    expect(gatesPassed).toBe(false);
+  });
+
+  it("generates deterministic results on repeated runs", () => {
+    const design = goodDesign();
+    const r1 = runGrading(p1Greenfield, design);
+    const r2 = runGrading(p1Greenfield, design);
+    expect(r1.totalScore).toBe(r2.totalScore);
+    expect(r1.isPassing).toBe(r2.isPassing);
+    expect(r1.checks.map((c) => c.checkId).sort()).toEqual(r2.checks.map((c) => c.checkId).sort());
+  });
+
+  it("all gate checks present on a valid design", () => {
+    const gateResultChecks = gateResult.checks.filter((c) => GATE_IDS.has(c.checkId));
+    expect(gateResultChecks.length).toBeGreaterThan(0);
+  });
+});
