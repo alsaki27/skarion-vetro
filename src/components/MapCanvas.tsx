@@ -476,7 +476,7 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
 
     const parcelSourceId = "workspace-parcels";
     const addressSourceId = "workspace-addresses";
@@ -626,8 +626,11 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       );
     };
 
-    ensureLayers();
-    syncParcelLabels(hoveredParcelIdRef.current, selectedBasemapFeature);
+    // Only gate the immediate paint; always register the retry listener.
+    if (map.isStyleLoaded()) {
+      ensureLayers();
+      syncParcelLabels(hoveredParcelIdRef.current, selectedBasemapFeature);
+    }
 
     const handleMove = (ev: maplibregl.MapMouseEvent) => {
       if (!basemapData) return;
@@ -651,6 +654,7 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     };
 
     const handleStyleRefresh = () => {
+      if (!map.isStyleLoaded()) return;
       ensureLayers();
       syncParcelLabels(hoveredParcelIdRef.current, useDesignStore.getState().selectedBasemapFeature);
     };
@@ -658,11 +662,13 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     map.on("mousemove", handleMove);
     map.on("mouseleave", handleLeave);
     map.on("styledata", handleStyleRefresh);
+    map.on("load", handleStyleRefresh);
 
     return () => {
       map.off("mousemove", handleMove);
       map.off("mouseleave", handleLeave);
       map.off("styledata", handleStyleRefresh);
+      map.off("load", handleStyleRefresh);
     };
   }, [basemapData, selectedBasemapFeature]);
 
