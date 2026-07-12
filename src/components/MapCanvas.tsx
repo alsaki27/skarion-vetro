@@ -11,6 +11,7 @@ import { nearestPointElement } from "@/lib/geometry";
 import { BASEMAP_LAYER_STYLES, loadBasemapLayers } from "@/lib/basemap";
 import type { BasemapLayerName } from "@/lib/basemap";
 import { findBasemapFeature } from "@/lib/basemap-workspace";
+import { BASEMAP_REF_STYLES } from "@/lib/basemap-workspace";
 import { authFetch } from "@/lib/api-client";
 
 const SNAP_FT = 60;
@@ -518,8 +519,8 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           type: "fill",
           source: parcelSourceId,
           paint: {
-            "fill-color": "#f59e0b",
-            "fill-opacity": 0.08,
+            "fill-color": BASEMAP_REF_STYLES.parcel.fillColor,
+            "fill-opacity": BASEMAP_REF_STYLES.parcel.fillOpacity,
           },
         });
       }
@@ -529,9 +530,13 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           type: "line",
           source: parcelSourceId,
           paint: {
-            "line-color": "#f59e0b",
-            "line-width": 1,
-            "line-opacity": 0.55,
+            "line-color": BASEMAP_REF_STYLES.parcel.lineColor,
+            "line-opacity": BASEMAP_REF_STYLES.parcel.lineOpacity,
+            "line-width": [
+              "interpolate", ["linear"], ["zoom"],
+              15, BASEMAP_REF_STYLES.parcel.lineWidthMin,
+              18, BASEMAP_REF_STYLES.parcel.lineWidthMax,
+            ],
           },
         });
       }
@@ -540,16 +545,17 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           id: parcelLabelId,
           type: "symbol",
           source: parcelSourceId,
+          minzoom: BASEMAP_REF_STYLES.parcel.labelMinZoom,
           layout: {
             "text-field": ["get", "parcel_external_id"],
-            "text-size": 10,
+            "text-size": BASEMAP_REF_STYLES.parcel.labelSize,
             "text-anchor": "center",
             "text-allow-overlap": true,
           },
           paint: {
-            "text-color": "#fef3c7",
-            "text-halo-color": "#111827",
-            "text-halo-width": 1,
+            "text-color": BASEMAP_REF_STYLES.parcel.labelColor,
+            "text-halo-color": BASEMAP_REF_STYLES.parcel.labelHaloColor,
+            "text-halo-width": BASEMAP_REF_STYLES.parcel.labelHaloWidth,
           },
         });
       }
@@ -561,25 +567,24 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           minzoom: 15,
           paint: {
             "circle-radius": [
-              "case",
-              ["==", ["get", "serviceable"], true],
-              4,
-              3,
+              "interpolate", ["linear"], ["zoom"],
+              15, BASEMAP_REF_STYLES.address.circleRadiusMin,
+              18, BASEMAP_REF_STYLES.address.circleRadiusMax,
             ],
             "circle-color": [
               "case",
               ["==", ["get", "serviceable"], true],
-              "#22c55e",
-              "#64748b",
+              BASEMAP_REF_STYLES.address.circleColorServiceable,
+              BASEMAP_REF_STYLES.address.circleColorContext,
             ],
             "circle-opacity": [
               "case",
               ["==", ["get", "serviceable"], true],
-              0.95,
-              0.45,
+              BASEMAP_REF_STYLES.address.circleOpacityServiceable,
+              BASEMAP_REF_STYLES.address.circleOpacityContext,
             ],
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#0f172a",
+            "circle-stroke-width": BASEMAP_REF_STYLES.address.circleStrokeWidth,
+            "circle-stroke-color": BASEMAP_REF_STYLES.address.circleStrokeColor,
           },
         });
       }
@@ -588,18 +593,18 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           id: addressLabelId,
           type: "symbol",
           source: addressSourceId,
-          minzoom: 17,
+          minzoom: BASEMAP_REF_STYLES.address.labelMinZoom,
           layout: {
             "text-field": ["coalesce", ["to-string", ["get", "house_number"]], ["get", "full_address"]],
-            "text-size": 10,
+            "text-size": BASEMAP_REF_STYLES.address.labelSize,
             "text-offset": [0, 1],
             "text-anchor": "top",
             "text-allow-overlap": false,
           },
           paint: {
-            "text-color": "#e2e8f0",
-            "text-halo-color": "#020617",
-            "text-halo-width": 1.2,
+            "text-color": BASEMAP_REF_STYLES.address.labelColor,
+            "text-halo-color": BASEMAP_REF_STYLES.address.labelHaloColor,
+            "text-halo-width": BASEMAP_REF_STYLES.address.labelHaloWidth,
           },
         });
       }
@@ -671,6 +676,27 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       map.off("load", handleStyleRefresh);
     };
   }, [basemapData, selectedBasemapFeature]);
+
+  // Drive hover/selected visual state on the parcel fill layer.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const parcelFillId = "workspace-parcels-fill";
+    if (!map.getLayer(parcelFillId)) return;
+
+    const selectedParcelId = selectedBasemapFeature?.layer === "parcels"
+      ? selectedBasemapFeature.feature.id
+      : null;
+
+    map.setPaintProperty(parcelFillId, "fill-opacity", [
+      "case",
+      ["==", ["get", "parcel_external_id"], ["literal", selectedParcelId ?? "__none__"]],
+      BASEMAP_REF_STYLES.parcel.fillOpacitySelected,
+      ["==", ["get", "parcel_external_id"], ["literal", hoveredParcelId ?? "__none__"]],
+      BASEMAP_REF_STYLES.parcel.fillOpacityHover,
+      BASEMAP_REF_STYLES.parcel.fillOpacity,
+    ]);
+  }, [hoveredParcelId, selectedBasemapFeature]);
 
   useEffect(() => {
     const map = mapRef.current;

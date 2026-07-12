@@ -6,6 +6,47 @@ import type {
   LngLat,
 } from "./types";
 
+// ---------------------------------------------------------------------------
+// Shared style constants for the workspace parcel/address reference layers.
+// Inline magic numbers have been consolidated here so all layer definitions
+// (MapCanvas.tsx) and the legend / layer-control panel can share one source of
+// truth for colors, opacities, and zoom rules.
+// ---------------------------------------------------------------------------
+
+export const BASEMAP_REF_STYLES = {
+  parcel: {
+    fillColor: "#f59e0b",
+    fillOpacity: 0.08,
+    fillOpacityHover: 0.25,
+    fillOpacitySelected: 0.35,
+    lineColor: "#f59e0b",
+    lineOpacity: 0.55,
+    lineWidthMin: 1,
+    lineWidthMax: 1.5,
+    labelMinZoom: 18,
+    labelColor: "#fef3c7",
+    labelHaloColor: "#111827",
+    labelHaloWidth: 1,
+    labelSize: 10,
+  },
+  address: {
+    circleRadiusMin: 3,
+    circleRadiusMax: 5,
+    circleColorServiceable: "#22c55e",
+    circleColorContext: "#64748b",
+    circleOpacityServiceable: 0.95,
+    circleOpacityContext: 0.45,
+    circleOpacityHover: 1.0,
+    circleStrokeColor: "#0f172a",
+    circleStrokeWidth: 1.5,
+    labelMinZoom: 17,
+    labelColor: "#e2e8f0",
+    labelHaloColor: "#020617",
+    labelHaloWidth: 1.2,
+    labelSize: 10,
+  },
+} as const;
+
 export interface AddressBasemapProperties extends Record<string, unknown> {
   address_external_id: string;
   full_address: string;

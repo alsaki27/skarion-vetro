@@ -52,6 +52,19 @@ vi.mock("@/lib/basemap", () => ({
 
 vi.mock("@/lib/basemap-workspace", () => ({
   findBasemapFeature: vi.fn(() => null),
+  BASEMAP_REF_STYLES: {
+    parcel: {
+      fillColor: "#f59e0b", fillOpacity: 0.08, fillOpacityHover: 0.25, fillOpacitySelected: 0.35,
+      lineColor: "#f59e0b", lineOpacity: 0.55, lineWidthMin: 1, lineWidthMax: 1.5,
+      labelMinZoom: 18, labelColor: "#fef3c7", labelHaloColor: "#111", labelHaloWidth: 1, labelSize: 10,
+    },
+    address: {
+      circleRadiusMin: 3, circleRadiusMax: 5, circleColorServiceable: "#22c55e", circleColorContext: "#64748b",
+      circleOpacityServiceable: 0.95, circleOpacityContext: 0.45, circleOpacityHover: 1.0,
+      circleStrokeColor: "#0f172a", circleStrokeWidth: 1.5,
+      labelMinZoom: 17, labelColor: "#e2e8f0", labelHaloColor: "#0206", labelHaloWidth: 1.2, labelSize: 10,
+    },
+  } as const,
 }));
 
 vi.stubGlobal("fetch", vi.fn(() =>
@@ -143,8 +156,8 @@ describe("MapCanvas basemap style effect", () => {
 
 function mockBasemapData() {
   return {
-    parcels: [{ id: "R1", type: "Feature", geometry: { type: "Polygon", coordinates: [] }, properties: { parcel_external_id: "R1" } }],
-    addresses: [{ id: "A1", type: "Feature", geometry: { type: "Point", coordinates: [0, 0] }, properties: { address_external_id: "A1", serviceable: true } }],
+    parcels: [{ id: "R1", type: "Feature" as const, geometry: { type: "Polygon" as const, coordinates: [] }, properties: { parcel_external_id: "R1" } }],
+    addresses: [{ id: "A1", type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [0, 0] }, properties: { address_external_id: "A1", serviceable: true } }],
   };
 }
 
