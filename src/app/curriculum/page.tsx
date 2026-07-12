@@ -51,7 +51,7 @@ export default function CurriculumPage() {
         {projects.filter((p) => ACTIVE_PROJECT_IDS.has(p.id)).map((p) => (
           <Link
             key={p.id}
-            href={`/project/${p.id}`}
+            href={`/workspace/${p.id}`}
             className="block rounded-lg border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-blue-600"
           >
             <div className="flex items-center justify-between">

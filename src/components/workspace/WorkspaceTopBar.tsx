@@ -7,12 +7,16 @@ import { useDesignStore } from "@/lib/store";
 export function WorkspaceTopBar({
   project,
   onToggleBrief,
+  onGrade,
 }: {
   project: ProjectFixture;
   onToggleBrief: () => void;
+  onGrade?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const grading = useDesignStore((s) => s.grading);
+  const basemap = useDesignStore((s) => s.basemap);
+  const setBasemap = useDesignStore((s) => s.setBasemap);
   const issueCount = grading?.checks.filter((c) => c.status === "fail").length ?? 0;
 
   return (
@@ -36,6 +40,12 @@ export function WorkspaceTopBar({
         <span className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
           {project.environment}
         </span>
+        <button
+          onClick={() => setBasemap(basemap === "satellite" ? "streets" : "satellite")}
+          className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+        >
+          {basemap === "satellite" ? "🛰" : "🗺"} {basemap}
+        </button>
         {issueCount > 0 && (
           <span className="rounded bg-red-900/40 px-2 py-0.5 text-xs text-red-300">
             {issueCount} issues
@@ -47,6 +57,14 @@ export function WorkspaceTopBar({
         >
           Brief
         </button>
+        {onGrade && (
+          <button
+            onClick={onGrade}
+            className="rounded bg-green-700 px-2 py-1 text-xs font-semibold text-white hover:bg-green-600"
+          >
+            Submit
+          </button>
+        )}
         <span className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
           Student
         </span>

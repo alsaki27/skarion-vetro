@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { PROJECTS } from "@/lib/projects";
 import { useDesignStore } from "@/lib/store";
 import { WorkspaceTopBar } from "@/components/workspace/WorkspaceTopBar";
+import { WorkspaceToolStrip } from "@/components/workspace/WorkspaceToolStrip";
 import { LeftPanel } from "@/components/workspace/LeftPanel";
 import { RightPanel } from "@/components/workspace/RightPanel";
 import { BottomPanel } from "@/components/workspace/BottomPanel";
@@ -64,6 +65,9 @@ export default function WorkspacePage({
         project={project}
         onToggleBrief={() => setBriefOpen(true)}
       />
+
+      {/* Drawing tool strip */}
+      <WorkspaceToolStrip />
 
       <div className="flex flex-1 min-h-0">
         {/* Left panel */}
