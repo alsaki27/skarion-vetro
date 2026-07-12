@@ -8,6 +8,7 @@ import { useDesignStore } from "@/lib/store";
 import { WorkspaceTopBar } from "@/components/workspace/WorkspaceTopBar";
 import { WorkspaceToolStrip } from "@/components/workspace/WorkspaceToolStrip";
 import { WorkspaceStatusBar } from "@/components/workspace/WorkspaceStatusBar";
+import { WorkspaceOutputs } from "@/components/workspace/WorkspaceOutputs";
 import { LeftPanel } from "@/components/workspace/LeftPanel";
 import { RightPanel } from "@/components/workspace/RightPanel";
 import { BottomPanel } from "@/components/workspace/BottomPanel";
@@ -34,6 +35,7 @@ export default function WorkspacePage({
   const project = PROJECTS[projectId];
   const loadElements = useDesignStore((s) => s.loadElements);
   const [briefOpen, setBriefOpen] = useState(true);
+  const [outputsOpen, setOutputsOpen] = useState(false);
   const { state, set, toggleLeft, toggleRight, toggleBottom } = usePanelState(projectId);
 
   useEffect(() => {
@@ -65,6 +67,7 @@ export default function WorkspacePage({
       <WorkspaceTopBar
         project={project}
         onToggleBrief={() => setBriefOpen(true)}
+        onOutputs={() => setOutputsOpen(true)}
       />
 
       {/* Drawing tool strip */}
@@ -222,6 +225,9 @@ export default function WorkspacePage({
 
       {briefOpen && (
         <BriefModal project={project} onClose={() => setBriefOpen(false)} />
+      )}
+      {outputsOpen && (
+        <WorkspaceOutputs onClose={() => setOutputsOpen(false)} />
       )}
     </div>
   );

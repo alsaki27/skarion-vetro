@@ -15,10 +15,12 @@ export function WorkspaceTopBar({
   project,
   onToggleBrief,
   onGrade,
+  onOutputs,
 }: {
   project: ProjectFixture;
   onToggleBrief: () => void;
   onGrade?: () => void;
+  onOutputs?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -146,6 +148,14 @@ export function WorkspaceTopBar({
         >
           Brief
         </button>
+        {onOutputs && (
+          <button
+            onClick={onOutputs}
+            className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+          >
+            Outputs
+          </button>
+        )}
         {onGrade && (
           <button
             onClick={onGrade}
