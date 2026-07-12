@@ -7,6 +7,7 @@ import { PROJECTS } from "@/lib/projects";
 import { useDesignStore } from "@/lib/store";
 import { WorkspaceTopBar } from "@/components/workspace/WorkspaceTopBar";
 import { WorkspaceToolStrip } from "@/components/workspace/WorkspaceToolStrip";
+import { WorkspaceStatusBar } from "@/components/workspace/WorkspaceStatusBar";
 import { LeftPanel } from "@/components/workspace/LeftPanel";
 import { RightPanel } from "@/components/workspace/RightPanel";
 import { BottomPanel } from "@/components/workspace/BottomPanel";
@@ -216,6 +217,8 @@ export default function WorkspacePage({
           )}
         </div>
       </div>
+
+      <WorkspaceStatusBar />
 
       {briefOpen && (
         <BriefModal project={project} onClose={() => setBriefOpen(false)} />
