@@ -11,6 +11,7 @@ const GATE_CHECK_IDS = new Set([
   "compliance",
   "capacity",
   "trespass",
+  "unassigned_premise",
 ]);
 
 export async function POST(request: NextRequest) {

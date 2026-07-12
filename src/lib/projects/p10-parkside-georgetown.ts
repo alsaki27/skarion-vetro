@@ -112,6 +112,7 @@ export const p10ParksideGeorgetown: ProjectFixture = {
     trespass: 0.20,
     element_outside_boundary: 0.0,
     boundary_crossing_unmarked: 0.0,
+    unassigned_premise: 0.0,
   },
   basemapId: "wilco-l131725c",
   // Matches the dev-login org (src/app/api/auth/login/route.ts). The

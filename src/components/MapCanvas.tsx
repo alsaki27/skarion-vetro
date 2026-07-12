@@ -405,7 +405,11 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
         const hit = map.queryRenderedFeatures(ev.point, {
           layers: ["design-points", "design-lines"],
         })[0];
-        s.select(hit ? String(hit.properties?.id) : null);
+        if (ev.originalEvent.shiftKey && hit) {
+          s.toggleSelection(String(hit.properties?.id));
+        } else {
+          s.select(hit ? String(hit.properties?.id) : null);
+        }
         return;
       }
 
@@ -466,11 +470,68 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
 
     map.on("click", handleClick);
     map.on("dblclick", handleDblClick);
+
+    // Rect-drag multi-select (C2: shift-click + rect-drag for premise selection)
+    const dragRect: { start: LngLat; end: LngLat } | null = null;
+    let dragActive = false;
+    const handleMouseDown = (ev: MapMouseEvent) => {
+      const s = stateRef.current;
+      if (s.tool !== "select") return;
+      // Only start rect-drag when clicking on empty map (no element or basemap hit)
+      const hit = map.queryRenderedFeatures(ev.point, {
+        layers: ["design-points", "design-lines", "workspace-parcels-fill", "workspace-addresses-circle"],
+      });
+      if (hit.length > 0) return;
+      dragActive = true;
+      // Use a property on the map instance for the mutable drag rect
+      (map as unknown as Record<string, unknown>)._dragRect = { start: [ev.lngLat.lng, ev.lngLat.lat] as LngLat, end: [ev.lngLat.lng, ev.lngLat.lat] as LngLat };
+    };
+    const handleMouseMove = (ev: MapMouseEvent) => {
+      if (!dragActive) return;
+      const rect = (map as unknown as Record<string, unknown>)._dragRect as { start: LngLat; end: LngLat } | undefined;
+      if (rect) rect.end = [ev.lngLat.lng, ev.lngLat.lat];
+    };
+    const handleMouseUp = (ev: MapMouseEvent) => {
+      if (!dragActive) return;
+      dragActive = false;
+      const rect = (map as unknown as Record<string, unknown>)._dragRect as { start: LngLat; end: LngLat } | undefined;
+      if (!rect) return;
+      const [sx, sy] = rect.start;
+      const [ex, ey] = rect.end;
+      const minX = Math.min(sx, ex);
+      const maxX = Math.max(sx, ex);
+      const minY = Math.min(sy, ey);
+      const maxY = Math.max(sy, ey);
+      // Only select if the rect has meaningful size (not a click)
+      if (Math.abs(ex - sx) < 0.0001 && Math.abs(ey - sy) < 0.0001) return;
+      const s = stateRef.current;
+      const inRect = Object.values(s.elements).filter((e) => {
+        if (e.type !== "premise") return false;
+        const pos = (e as { position?: LngLat }).position;
+        if (!pos) return false;
+        return pos[0] >= minX && pos[0] <= maxX && pos[1] >= minY && pos[1] <= maxY;
+      });
+      if (inRect.length > 0) {
+        // If shift held, add to existing selection; otherwise replace
+        const existing = ev.originalEvent.shiftKey ? new Set(s.selectedIds) : new Set<string>();
+        inRect.forEach((e) => existing.add(e.id));
+        s.select(inRect[inRect.length - 1].id);
+        useDesignStore.setState({ selectedIds: existing });
+      }
+      delete (map as unknown as Record<string, unknown>)._dragRect;
+    };
+
+    map.on("mousedown", handleMouseDown);
+    map.on("mousemove", handleMouseMove);
+    map.on("mouseup", handleMouseUp);
     window.addEventListener("keydown", handleKey);
 
     return () => {
       unsubscribe();
       window.removeEventListener("keydown", handleKey);
+      map.off("mousedown", handleMouseDown);
+      map.off("mousemove", handleMouseMove);
+      map.off("mouseup", handleMouseUp);
       map.remove();
       mapRef.current = null;
     };
@@ -847,6 +908,72 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       }
     }
   }, [showBasemapCanvas, visibleBasemapLayers]);
+
+  // Service group hull rendering
+  const serviceGroups = useDesignStore((s) => s.serviceGroups);
+  const designElements = useDesignStore((s) => s.elements);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const groupSourceId = "service-group-hulls";
+
+    // Collect all group polygons
+    const features: GeoJSON.Feature[] = [];
+    for (const g of Object.values(serviceGroups)) {
+      const premises = g.premiseIds.map((id) => designElements[id]).filter(Boolean);
+      if (premises.length < 2) continue;
+      const posns = premises.map((e) => {
+        const pos = (e as { position?: [number, number] }).position;
+        return pos ? [pos[0], pos[1]] as [number, number] : null;
+      }).filter(Boolean) as [number, number][];
+      if (posns.length < 3) continue;
+      // Simple bounding polygon with padding
+      const pad = 0.00015;
+      const minLng = Math.min(...posns.map((p) => p[0])) - pad;
+      const maxLng = Math.max(...posns.map((p) => p[0])) + pad;
+      const minLat = Math.min(...posns.map((p) => p[1])) - pad;
+      const maxLat = Math.max(...posns.map((p) => p[1])) + pad;
+      features.push({
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[[minLng, minLat], [maxLng, minLat], [maxLng, maxLat], [minLng, maxLat], [minLng, minLat]]],
+        },
+        properties: { name: g.name, color: g.color },
+      });
+    }
+
+    const source = map.getSource(groupSourceId) as maplibregl.GeoJSONSource | undefined;
+    if (features.length === 0) {
+      if (source) source.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+    if (source) {
+      source.setData({ type: "FeatureCollection", features });
+    } else {
+      map.addSource(groupSourceId, { type: "geojson", data: { type: "FeatureCollection", features } });
+      map.addLayer({
+        id: "service-group-hulls",
+        type: "fill",
+        source: groupSourceId,
+        paint: {
+          "fill-color": ["get", "color"],
+          "fill-opacity": 0.15,
+        },
+      });
+      map.addLayer({
+        id: "service-group-hulls-line",
+        type: "line",
+        source: groupSourceId,
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 2,
+          "line-dasharray": [4, 2],
+          "line-opacity": 0.6,
+        },
+      });
+    }
+  }, [serviceGroups, designElements]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

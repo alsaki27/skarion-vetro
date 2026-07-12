@@ -27,6 +27,8 @@ export interface DesignContext {
   containment: Map<string, Set<string>>;
   /** parcel/address basemap data for geometry-aware checks (optional) */
   basemapData?: BasemapDataset | null;
+  /** service group membership (optional — C2 HLD-02) */
+  serviceGroups?: Record<string, { id: string; premiseIds: string[] }> | null;
 }
 
 const ENDPOINT_SNAP_FT = 40;
@@ -57,6 +59,7 @@ export function buildContext(
   project: ProjectFixture,
   elements: NetworkElement[],
   basemapData?: BasemapDataset | null,
+  serviceGroups?: Record<string, { id: string; premiseIds: string[] }> | null,
 ): DesignContext {
   const points = elements.filter(isPointElement);
   const lines = elements.filter(isLineElement);
@@ -102,7 +105,7 @@ export function buildContext(
     }
   }
 
-  return { project, elements, points, lines, graph, containment, basemapData };
+  return { project, elements, points, lines, graph, containment, basemapData, serviceGroups };
 }
 
 /** BFS: is there a path between two point elements through the line graph? */
@@ -789,6 +792,35 @@ const boundary_crossing_unmarked: CheckDef = {
   },
 };
 
+const unassigned_premise: CheckDef = {
+  id: "unassigned_premise",
+  category: "hld",
+  run(ctx) {
+    const allPremises = ctx.points.filter((p) => p.type === "premise");
+    if (allPremises.length === 0) {
+      return { checkId: "unassigned_premise", category: "hld", status: "pass", score: 100, message: "No premises to assign." };
+    }
+    const assignedIds = new Set<string>();
+    if (ctx.serviceGroups) {
+      for (const g of Object.values(ctx.serviceGroups)) {
+        for (const id of g.premiseIds) { assignedIds.add(id); }
+      }
+    }
+    const unassigned = allPremises.filter((p) => !assignedIds.has(p.id));
+    const score = unassigned.length === 0 ? 100 : Math.max(0, 100 - unassigned.length * 10);
+    return {
+      checkId: "unassigned_premise",
+      category: "hld",
+      status: unassigned.length === 0 ? "pass" : "fail",
+      score,
+      message: unassigned.length === 0
+        ? "All premises assigned to service groups."
+        : `${unassigned.length} premise(s) not assigned to any service group.`,
+      elementIds: unassigned.map((p) => p.id),
+    };
+  },
+};
+
 export const CHECK_REGISTRY: Record<string, CheckDef> = {
   coverage,
   connectivity,
@@ -810,6 +842,7 @@ export const CHECK_REGISTRY: Record<string, CheckDef> = {
   trespass,
   element_outside_boundary,
   boundary_crossing_unmarked,
+  unassigned_premise,
 };
 
 // ---------------------------------------------------------------------------
@@ -818,8 +851,9 @@ export function runGrading(
   project: ProjectFixture,
   elements: NetworkElement[],
   basemapData?: BasemapDataset | null,
+  serviceGroups?: Record<string, { id: string; premiseIds: string[] }> | null,
 ): GradingResult {
-  const ctx = buildContext(project, elements, basemapData);
+  const ctx = buildContext(project, elements, basemapData, serviceGroups);
   const checks = Object.keys(project.gradingWeights)
     .map((id) => CHECK_REGISTRY[id])
     .filter(Boolean)
@@ -852,8 +886,9 @@ export function runSingleCheck(
   project: ProjectFixture,
   elements: NetworkElement[],
   basemapData?: BasemapDataset | null,
+  serviceGroups?: Record<string, { id: string; premiseIds: string[] }> | null,
 ): CheckResult | null {
   const def = CHECK_REGISTRY[checkId];
   if (!def) return null;
-  return def.run(buildContext(project, elements, basemapData));
+  return def.run(buildContext(project, elements, basemapData, serviceGroups));
 }
