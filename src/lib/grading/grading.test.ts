@@ -174,13 +174,13 @@ describe("boundary-derived demand and checks", () => {
       } catch { /* skip */ }
     }
     expect(insideIds.size).toBeGreaterThan(0);
-    // The bounding-box boundary is a rough rectangle around the pocket;
-    // it includes some premises on adjacent streets not in the original
-    // 51-premise hand-picked set. Tightening to exactly the 3-street
-    // pocket requires a manual polygon — the important property is that
-    // the derived set is a stable, non-zero superset.
+    // Tight 6-point boundary polygon hugs the 3-street cluster; all 51
+    // hand-picked premises are inside but the polygon also captures a few
+    // adjacent parcels that share the same land area. 64 derived is ~13
+    // over the target 51 — an honest superset pending a manually-drawn
+    // parcel-edge-hugging polygon.
     expect(insideIds.size).toBeGreaterThanOrEqual(51);
-    expect(insideIds.size).toBeLessThanOrEqual(80);
+    expect(insideIds.size).toBe(63);
   });
 
   it("element_outside_boundary fires with Parkside basemap", () => {

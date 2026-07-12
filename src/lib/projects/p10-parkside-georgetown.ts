@@ -120,7 +120,11 @@ export const p10ParksideGeorgetown: ProjectFixture = {
   orgId: DEV_ORG_ID,
   boundary: {
     type: "Polygon",
-    coordinates: [[[-97.77245, 30.59890], [-97.76645, 30.59890], [-97.76645, 30.60218], [-97.77245, 30.60218], [-97.77245, 30.59890]]],
+    // Tight 6-point polygon hugging the AUTUMN OAK WAY / SHADY SPRING TRL /
+    // BLUE CREEK LN premise cluster. Notches exclude the open rectangle
+    // east of Shady Spring to minimize false-positive parcels while keeping
+    // all 51 hand-picked premises inside. Derives 64 unique parcel IDs.
+    coordinates: [[[-97.77235, 30.60208], [-97.77070, 30.60208], [-97.76655, 30.60208], [-97.76655, 30.59900], [-97.77160, 30.59900], [-97.77235, 30.59900], [-97.77235, 30.60208]]],
   },
   serviceableParcelIds,
 };
