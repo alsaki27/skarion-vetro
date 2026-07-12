@@ -5,7 +5,6 @@ import { useDesignStore } from "@/lib/store";
 import { LayersPanel } from "./LayersPanel";
 import { DataCatalogPanel } from "./DataCatalogPanel";
 import { StudyAreaSelector } from "./StudyAreaSelector";
-import { BasemapLayerControl } from "./BasemapLayerControl";
 
 type LeftTab = "layers" | "catalog" | "project" | "issues";
 
@@ -37,13 +36,7 @@ export function LeftPanel({ projectId }: { projectId: string }) {
         ))}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
-        {tab === "layers" && (
-          <>
-            <BasemapLayerControl />
-            <div className="my-2 border-t border-zinc-800" />
-            <LayersPanel projectId={projectId} />
-          </>
-        )}
+        {tab === "layers" && <LayersPanel projectId={projectId} />}
         {tab === "catalog" && <DataCatalogPanel projectId={projectId} />}
         {tab === "project" && <ProjectTab projectId={projectId} />}
         {tab === "issues" && <IssuesTab />}

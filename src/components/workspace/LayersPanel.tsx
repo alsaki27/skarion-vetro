@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useDesignStore } from "@/lib/store";
+import { BASEMAP_REF_STYLES } from "@/lib/basemap-workspace";
 
 interface LayerItem {
   id: string;
@@ -26,8 +28,6 @@ const DEFAULT_LAYERS: LayerItem[] = [
   { id: "basemap-streets", name: "Streets", group: "Basemaps", visible: false, opacity: 100, zIndex: 1 },
   { id: "basemap-labeled", name: "Labels Overlay", group: "Basemaps", visible: true, opacity: 100, zIndex: 2 },
   { id: "ref-boundaries", name: "Boundaries", group: "Administrative", visible: false, opacity: 80, zIndex: 3, minZoom: 10 },
-  { id: "ref-parcels", name: "Parcels (WCAD)", group: "Parcels & Property", visible: false, opacity: 60, zIndex: 4, minZoom: 15, sourceType: "WCAD Tax Parcels", description: "Muted reference polygons for property boundaries." },
-  { id: "ref-addresses", name: "Address Points (E911)", group: "Addresses & Buildings", visible: false, opacity: 100, zIndex: 5, minZoom: 15, sourceType: "Williamson County 911", description: "Serviceable premises use filled dots; closed or non-serviceable points remain hollow/dim." },
   { id: "ref-roads", name: "Road Centerlines", group: "Roads", visible: true, opacity: 100, zIndex: 6, minZoom: 8 },
   { id: "ref-row", name: "ROW / Easements", group: "ROW", visible: false, opacity: 100, zIndex: 7, minZoom: 12 },
   { id: "ref-utilities", name: "Existing Utilities", group: "Existing Utilities", visible: false, opacity: 70, zIndex: 8, minZoom: 13 },
@@ -35,6 +35,50 @@ const DEFAULT_LAYERS: LayerItem[] = [
   { id: "proposed-network", name: "Proposed Network", group: "Proposed Network", visible: true, opacity: 100, zIndex: 10 },
   { id: "ref-annotation", name: "Annotations", group: "Reference/Annotation", visible: false, opacity: 100, zIndex: 11 },
 ];
+
+function BasemapRefSection() {
+  const basemapData = useDesignStore((s) => s.basemapData);
+  const refParcelsVisible = useDesignStore((s) => s.refParcelsVisible);
+  const refAddressesVisible = useDesignStore((s) => s.refAddressesVisible);
+
+  const parcelCount = basemapData?.parcels?.length ?? 0;
+  const addressCount = basemapData?.addresses?.length ?? 0;
+
+  const toggleParcels = () => useDesignStore.setState((s) => ({ refParcelsVisible: !s.refParcelsVisible }));
+  const toggleAddresses = () => useDesignStore.setState((s) => ({ refAddressesVisible: !s.refAddressesVisible }));
+
+  return (
+    <div className="mb-3 pb-2 border-b border-zinc-700">
+      <div className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider px-1 mb-1">
+        Basemap: Parkside (WCAD)
+      </div>
+      <button
+        onClick={toggleParcels}
+        className="flex items-center gap-1.5 rounded bg-zinc-800/50 px-1.5 py-1 w-full text-left hover:bg-zinc-800 transition-colors"
+      >
+        <span className="text-xs">{refParcelsVisible ? "▣" : "□"}</span>
+        <span className={`flex-1 text-xs ${refParcelsVisible ? "text-zinc-200" : "text-zinc-500"}`}>Parcels</span>
+        <span className="text-[10px] text-zinc-500">({parcelCount})</span>
+      </button>
+      <button
+        onClick={toggleAddresses}
+        className="flex items-center gap-1.5 rounded bg-zinc-800/50 px-1.5 py-1 w-full text-left hover:bg-zinc-800 transition-colors"
+      >
+        <span className="text-xs">{refAddressesVisible ? "●" : "○"}</span>
+        <span className={`flex-1 text-xs ${refAddressesVisible ? "text-zinc-200" : "text-zinc-500"}`}>Addresses</span>
+        <span className="text-[10px] text-zinc-500">({addressCount})</span>
+      </button>
+      <div className="mt-1.5 pt-1 border-t border-zinc-800 flex items-center gap-2 px-1 text-[10px] text-zinc-500">
+        <span className="inline-block w-2 h-0.5 rounded" style={{ backgroundColor: BASEMAP_REF_STYLES.parcel.lineColor }} />
+        <span>Parcel</span>
+        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: BASEMAP_REF_STYLES.address.circleColorServiceable }} />
+        <span>Svcl</span>
+        <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: BASEMAP_REF_STYLES.address.circleColorContext }} />
+        <span>Other</span>
+      </div>
+    </div>
+  );
+}
 
 export function LayersPanel({ projectId }: { projectId: string }) {
   const storageKey = `skarion_layers_${projectId}`;
@@ -95,6 +139,9 @@ export function LayersPanel({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-1">
+      {/* Basemap: Parkside (WCAD) — real-time reference layer controls */}
+      <BasemapRefSection />
+
       {/* Search filter */}
       <div className="px-1 pb-1">
         <input
