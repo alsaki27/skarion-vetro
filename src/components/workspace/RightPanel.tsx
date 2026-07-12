@@ -250,31 +250,40 @@ function BasemapAttributesTab({ feature }: { feature: BasemapFeature }) {
 
 function BasemapSourceTab({ feature }: { feature: BasemapFeature }) {
   const props = feature.properties as Record<string, unknown>;
+  const isAddr = isAddressFeature(feature);
+  const isPcl = isParcelFeature(feature);
   return (
-    <div className="space-y-1 text-xs">
+    <div className="space-y-2 text-xs">
       <div className="grid grid-cols-[1fr_1fr] gap-1">
         <div className="text-zinc-500">Source</div>
-        <div className="text-zinc-300">{String(props.source_id ?? "—")}</div>
+        <div className="text-zinc-300">{isPcl ? "WCAD" : "Wilco 911"}</div>
         <div className="text-zinc-500">Last Update</div>
         <div className="text-zinc-300">{String(props.source_last_update ?? "—")}</div>
         <div className="text-zinc-500">Layer</div>
-        <div className="text-zinc-300">{isAddressFeature(feature) ? "Addresses" : "Parcels"}</div>
-        {isAddressFeature(feature) && (
+        <div className="text-zinc-300">{isAddr ? "Addresses" : "Parcels"}</div>
+        {isAddr && (
           <>
             <div className="text-zinc-500">Serviceable</div>
-            <div className="text-zinc-300">{String(feature.properties.serviceable ?? false)}</div>
+            <div className="text-zinc-300">{String(props.serviceable ?? false)}</div>
             <div className="text-zinc-500">Status</div>
-            <div className="text-zinc-300">{feature.properties.status}</div>
+            <div className="text-zinc-300">{String(props.status ?? "—")}</div>
           </>
         )}
-        {isParcelFeature(feature) && (
+        {isPcl && (
           <>
             <div className="text-zinc-500">Land Use</div>
-            <div className="text-zinc-300">{feature.properties.land_use}</div>
+            <div className="text-zinc-300">{String(props.land_use ?? "—")}</div>
             <div className="text-zinc-500">Situs Address</div>
-            <div className="text-zinc-300">{feature.properties.site_address ?? "—"}</div>
+            <div className="text-zinc-300">{String(props.site_address ?? "—")}</div>
+            <div className="text-zinc-500">Acreage</div>
+            <div className="text-zinc-300">{String(props.acreage ?? props.acres ?? "—")}</div>
           </>
         )}
+      </div>
+      <div className="rounded bg-zinc-800/50 px-2 py-1.5 text-[10px] text-zinc-400 leading-relaxed">
+        {isPcl
+          ? "Williamson County Appraisal District (WCAD). Public domain — WCAD is authoritative for parcel boundaries, ownership, and land use."
+          : "Williamson County 911 Addressing. CITY='WC' = unincorporated Williamson County (no municipal jurisdiction)."}
       </div>
     </div>
   );
