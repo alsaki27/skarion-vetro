@@ -698,6 +698,26 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     ]);
   }, [hoveredParcelId, selectedBasemapFeature]);
 
+  const refParcelsVisible = useDesignStore((s) => s.refParcelsVisible);
+  const refAddressesVisible = useDesignStore((s) => s.refAddressesVisible);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const parcelFillId = "workspace-parcels-fill";
+    const parcelLineId = "workspace-parcels-line";
+    const parcelLabelId = "workspace-parcels-label";
+    const addressCircleId = "workspace-addresses-circle";
+    const addressLabelId = "workspace-addresses-label";
+    const parcelVis = refParcelsVisible ? "visible" : "none";
+    const addressVis = refAddressesVisible ? "visible" : "none";
+    if (map.getLayer(parcelFillId)) map.setLayoutProperty(parcelFillId, "visibility", parcelVis);
+    if (map.getLayer(parcelLineId)) map.setLayoutProperty(parcelLineId, "visibility", parcelVis);
+    if (map.getLayer(parcelLabelId)) map.setLayoutProperty(parcelLabelId, "visibility", parcelVis);
+    if (map.getLayer(addressCircleId)) map.setLayoutProperty(addressCircleId, "visibility", addressVis);
+    if (map.getLayer(addressLabelId)) map.setLayoutProperty(addressLabelId, "visibility", addressVis);
+  }, [refParcelsVisible, refAddressesVisible]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded() || !basemapData) return;

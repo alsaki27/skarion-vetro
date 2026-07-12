@@ -35,6 +35,9 @@ interface DesignState {
   basemapData: BasemapDataset | null;
   /** Selected parcel/address feature, if any */
   selectedBasemapFeature: BasemapFeatureSelection | null;
+  /** Reference layer visibility toggles */
+  refParcelsVisible: boolean;
+  refAddressesVisible: boolean;
   /** LLD mode (splice table): unlocked after HLD gate pass */
   lldMode: boolean;
   /** In-progress line draw: vertices placed so far */
@@ -115,6 +118,8 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   visibleBasemapLayers: { EOP: true, CL: true, RW: true, PARCEL: true, BOUNDARY: true },
   basemapData: null,
   selectedBasemapFeature: null,
+  refParcelsVisible: true,
+  refAddressesVisible: true,
   lldMode: false,
   draftPath: [],
   draftStartElementId: null,
