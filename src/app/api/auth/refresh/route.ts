@@ -78,13 +78,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token reuse detected — session revoked", error_code: "TOKEN_REUSE" }, { status: 401 });
     }
 
+    // Load user's current membership to get actual role and email
+    const [membership] = await db.select({ role: schema.orgMembers.role })
+      .from(schema.orgMembers)
+      .where(and(
+        eq(schema.orgMembers.orgId, session.orgId),
+        eq(schema.orgMembers.userId, session.userId),
+      ))
+      .limit(1);
+
+    const [user] = await db.select({ email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.id, session.userId))
+      .limit(1);
+
+    // Deny if membership deactivated or not found
+    if (!membership) {
+      return NextResponse.json({ error: "Membership deactivated", error_code: "UNAUTHORIZED" }, { status: 401 });
+    }
+
     // Rotate: issue new tokens and update session
     const newTokenFamily = crypto.randomUUID();
     const newAccessToken = await createAccessToken({
       sub: session.userId,
-      email: payload.email ?? "",
+      email: user?.email ?? "",
       org_id: session.orgId,
-      role: "student",
+      role: membership.role,
     });
     const newRefreshToken = await createRefreshToken(session.userId, newTokenFamily);
     const newHash = hashToken(newRefreshToken);

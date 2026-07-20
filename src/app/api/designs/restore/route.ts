@@ -49,12 +49,13 @@ export async function POST(request: NextRequest) {
     const db = getDb();
     if (!db) return NextResponse.json({ error: "Database required" }, { status: 503 });
 
-    // Load the snapshot
+    // Load the snapshot with ownership check
     const [snapshot] = await db.select()
       .from(schema.designSnapshots)
       .where(and(
         eq(schema.designSnapshots.id, snapshotId),
         eq(schema.designSnapshots.orgId, auth.org_id),
+        eq(schema.designSnapshots.userId, auth.sub),
       ))
       .limit(1);
 

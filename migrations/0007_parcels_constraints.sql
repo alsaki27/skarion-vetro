@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS parcels (
     layer_id UUID REFERENCES project_layers(id),
     parcel_external_id TEXT,
     site_address TEXT,
-    owner_name TEXT,
     geometry GEOMETRY(GEOMETRY, 4326) NOT NULL,
     source_id UUID REFERENCES data_sources(id),
     created_at TIMESTAMPTZ DEFAULT NOW()

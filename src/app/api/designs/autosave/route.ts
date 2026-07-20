@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/auth";
 import { getDb, schema } from "@/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         eq(schema.designSnapshots.userId, auth.sub),
         eq(schema.designSnapshots.orgId, auth.org_id),
       ))
-      .orderBy(/* desc */ schema.designSnapshots.createdAt)
+      .orderBy(desc(schema.designSnapshots.createdAt))
       .limit(1);
 
     const result = await db.insert(schema.designSnapshots).values({
@@ -72,10 +72,10 @@ export async function GET(request: NextRequest) {
         eq(schema.designSnapshots.userId, auth.sub),
         eq(schema.designSnapshots.orgId, auth.org_id),
       ))
-      .orderBy(schema.designSnapshots.createdAt)
+      .orderBy(desc(schema.designSnapshots.createdAt))
       .limit(20);
 
-    const latest = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
+    const latest = snapshots.length > 0 ? snapshots[0] : null;
     return NextResponse.json({
       history: snapshots.map((s) => ({ id: s.id, note: s.snapshotNote, createdAt: s.createdAt })),
       latest: latest ? { id: latest.id, data: latest.snapshotData, createdAt: latest.createdAt } : null,

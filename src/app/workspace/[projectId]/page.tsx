@@ -42,18 +42,35 @@ export default function WorkspacePage({
   const { state, set, toggleLeft, toggleRight, toggleBottom } = usePanelState(projectId);
   const { status: autosaveStatus, lastSavedAt, markDirty } = useAutosave(projectId);
 
-  useEffect(() => {
-    if (project) loadElements(project.preloadedElements);
-  }, [project, loadElements]);
-
-  // Mark dirty when elements change (only after initial load)
-  const elementsRef = useRef(useDesignStore.getState().elements);
   const elements = useDesignStore((s) => s.elements);
+
   useEffect(() => {
-    if (elementsRef.current !== elements) {
-      elementsRef.current = elements;
-      markDirty();
+    if (!project) return;
+    (async () => {
+      const token = localStorage.getItem("token");
+      try {
+        const res = await fetch(`/api/designs/autosave?projectId=${projectId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json() as { latest?: { data: { elements?: Parameters<typeof loadElements>[0] } } };
+          if (data.latest?.data?.elements) {
+            loadElements(data.latest.data.elements);
+            return;
+          }
+        }
+      } catch { /* fall through to fixtures */ }
+      loadElements(project.preloadedElements);
+    })();
+  }, [project, projectId, loadElements]);
+
+  // Only track dirty after initialization (prevent autosave during hydration)
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current && Object.keys(elements).length > 0) {
+      initializedRef.current = true;
     }
+    if (initializedRef.current) markDirty();
   }, [elements, markDirty]);
 
   useKeyboardShortcuts(

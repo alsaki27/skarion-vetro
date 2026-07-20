@@ -592,7 +592,6 @@ export const parcels = pgTable("parcels", {
   layerId: uuid("layer_id").references(() => projectLayers.id),
   parcelExternalId: text("parcel_external_id").notNull(),
   siteAddress: text("site_address"),
-  ownerName: text("owner_name"),
   geometry: text("geometry").notNull(),
   sourceId: uuid("source_id").references(() => dataSources.id),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
