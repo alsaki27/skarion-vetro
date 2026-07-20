@@ -115,7 +115,7 @@ All checks are pure functions over a `DesignContext` (elements + graph + contain
 9 project fixtures in `src/lib/projects/`:
 
 | Project | Environment | Difficulty |
-|---|---|---|---|
+|---|---|---|
 | P1: Greenfield Build | Aerial | Beginner |
 | P2: Oakwood Underground | Underground | Beginner |
 | P3: Sunset Ridge Aerial | Aerial | Intermediate |

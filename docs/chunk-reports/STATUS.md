@@ -14,7 +14,7 @@ Judged by files present **on the recovery branch** (baseline from `feat/30-chunk
 | 6 | Repository/service layer | partial | partial | `src/lib/db/tenant-context.ts`, `project-repository.ts`, `design-repository.ts`, `repositories.test.ts`; missing: most route handlers still call `getDb()` directly |
 | 7 | Observability, audit, health | partial | partial | `src/app/api/health/live/route.ts`, `health/ready/route.ts`, `src/lib/logging.ts`, `src/lib/audit.ts`; missing: audit hooks not wired into routes |
 | 8 | Engineering workspace shell | implemented | yes | `src/app/workspace/[projectId]/page.tsx`, `ErrorBoundary.tsx`, `use-panel-state.ts`, `use-keyboard-shortcuts.ts`, panel persistence |
-| 9 | Virtualized attribute table | implemented | yes | `src/components/workspace/BottomPanel.tsx` virtualizes rows, supports sort/filter, CSV export, and bi-directional selection sync with basemap features; `src/lib/attribute-table.test.ts` covers server-side pagination/filtering |
+| 9 | Virtualized attribute table | partial | yes | `src/components/workspace/BottomPanel.tsx` virtualizes rows, supports sort/filter, CSV export, and bi-directional selection sync; `src/app/api/features/route.ts` provides server-side pagination endpoint (Zod-validated, Drizzle queries); `src/lib/attribute-table.test.ts` currently tests only client-side array manipulation, not the API |
 | 10 | Symbology, labels, legends | partial | partial | `src/lib/styles.ts` with defaults, `StyleEditor.tsx`, `Legend.tsx`; missing: no schema/migration for `layer_styles`, no rule validation rejecting raw expressions, labels not applied to map |
 | 11 | Global search & measure | partial | partial | `src/app/api/search/route.ts` for roads+addresses, `src/components/workspace/WorkspaceTopBar.tsx` has search input; missing: measure tool, coordinate readout, typeahead UI |
 | 12 | (not in plan — was placeholder) | absent | no | Chunk 12 in the 50-chunk plan = symbology (same as 10). Plan's chunk 13 = global search. The plan renumbered. |
@@ -34,12 +34,12 @@ Judged by files present **on the recovery branch** (baseline from `feat/30-chunk
 | 26 | Authoritative stage engine | partial | no | `src/lib/hld-curriculum.ts` has stage definitions/gates; missing: server-side gate enforcement, tool registry per stage |
 | 27 | HLD 01 basemap handoff | partial | partial | Existing DWG pipeline `src/app/api/dwg/status/route.ts`, `scripts/dwg-pipeline/`; missing: approval workflow, stage blocking |
 | 28 | Design persistence, autosave | partial | partial | `src/lib/design-persistence.ts` has model + ETag conflict detection; missing: actual autosave endpoint, checkpoint storage |
-| 29 | HLD 02: service groups | partial | no | `src/lib/service-groups.ts` + test; missing: UI workflow, lasso selection, group colors, rationale requirement |
+| 29 | HLD 02: service groups | partial | yes | `src/lib/service-groups.ts` + test, `src/components/workspace/ServiceGroupPanel.tsx` (creation, deletion, MST sizing, group colors), `MapCanvas.tsx` renders colored hulls; missing: lasso/drag-select, rationale editing |
 | 30 | HLD 03: structures, containment | implemented | yes | Existing containment model (`src/lib/store.ts` hostInContainer, `HARDWARE_CATALOG`), `routes-model.ts` has structure catalog |
-| 31 | HLD 03: typed physical routes | partial | no | `src/lib/routes-model.ts` has route types/endpoint validation; missing: route editing UI, cable-in-conduit occupancy |
-| 32 | Constructability validation | partial | no | `src/lib/constructability.ts` has rule registry + source-aware validation; missing: most individual rules not wired, no issue↔map highlighting |
-| 33 | HLD 04: closures, FDH topology | partial | no | `src/lib/topology.ts` has trace/orphan detection; missing: closure service set workflow, topology graph persistence |
-| 34 | Server-authoritative grading | partial | partial | Existing `runGrading()` in `engine.ts`; missing: server-side execution with pinned versions, mandatory gates separate from scores |
+| 31 | HLD 03: typed physical routes | absent | no | `src/lib/routes-model.ts` defines `TypedRoute` interface and catalog; no route editing UI, no test file, no wired component |
+| 32 | Constructability validation | absent | no | `src/lib/constructability.ts` is a stub: rules are metadata-only, `validateWithSourceAvailability()` only checks source presence, no geometry-based validation; no UI wiring, no map highlighting |
+| 33 | HLD 04: closures, FDH topology | partial | yes | `src/lib/topology.ts` + test (trace/orphan detection), `src/components/workspace/TopologyTrace.tsx` (upstream path visualization), store has `closureServiceSets` state; missing: creation workflow, topology graph persistence |
+| 34 | Server-authoritative grading | partial | partial | `src/app/api/grading/route.ts` re-runs full check registry server-side with mandatory gate separation (connectivity/compliance/capacity/trespass/unassigned_premise); response includes `gates` object separate from weighted score; missing: pinned check versions per submission |
 | 35 | Cable model, fiber allocation | implemented | yes | `src/lib/fiber-engine.ts` with 12-color standard + allocation with overlap prevention; covered by `src/lib/lld-engines.test.ts` |
 | 36 | Splice model, splice matrix | implemented | yes | `src/lib/splice-model.ts` with continuity tracing + matrix generation; covered by `src/lib/lld-engines.test.ts` |
 | 37 | Deterministic numbering, schematic | implemented | yes | `src/lib/numbering-engine.ts` with graph-based numbering; covered by `src/lib/lld-engines.test.ts` |
@@ -49,21 +49,52 @@ Judged by files present **on the recovery branch** (baseline from `feat/30-chunk
 | 41 | Instructor review workflow | partial | partial | `src/lib/instructor-review.ts` + `instructor-review.test.ts` (comment model, resolve), `src/lib/hints-engine.ts`; missing: review queue UI, anchored comments, notifications |
 | 42 | Tiered hints & reasoning | partial | no | `src/lib/hints-engine.ts` with 3-tier hint library; missing: hint tracking, mastery evidence, no API/UI wiring |
 | 43 | Analytics & insight | partial | no | `src/lib/instructor-analytics.ts` with funnel calculation; missing: wired into API, replaces InstructorDashboard placeholder |
-| 44 | Export packages, CAD handoff | partial | partial | `src/lib/export-package.ts` + test (manifest, layer grouping); missing: actual export endpoint, DXF generation |
-| 45 | Portfolio & onboarding | absent | no | No portfolio generation, no onboarding tour, no certificate verification |
+| 44 | Export packages, CAD handoff | implemented | yes | `src/app/api/designs/export/route.ts` builds GeoJSON FeatureCollection with SHA-256 checksum + BOM CSV via `buildBOM()`; `src/lib/export-package.ts` is a redundant early library; missing: DXF generation |
+| 45 | Portfolio & onboarding | partial | yes | `src/components/workspace/WorkspaceTour.tsx` (6-step tour overlay), `src/components/PortfolioExport.tsx` (element count, BOM breakdown, JSON export download); missing: PDF export, certificate verification |
 | 46 | Vector tiles, performance | partial | no | `src/lib/performance-budgets.ts` with budgets + tile configs; missing: vector tile server, load testing. Constants file ≠ vector tiles implemented. |
 | 47 | Security hardening | partial | partial | `src/lib/auth/security.test.ts`, CI gates from Task 2; missing: dependency scanning in CI, CSP headers, full cross-tenant suite |
 | 48 | Accessibility WCAG | partial | partial | `workspace-accessibility.spec.ts` basic test; missing: keyboard fallbacks for map, axe CI scan, color-blind palettes |
 | 49 | Operations, DR, deployment | absent | no | No backup/restore drill, no deployment pipeline, no incident runbook |
-| 50 | MVP acceptance scenario | absent | no | No end-to-end mega-journey, no launch checklist execution |
+| 50 | MVP acceptance scenario | implemented | yes | `e2e/acceptance-journey.spec.ts` — single mega-test covering login → map render (parcel/address source verification) → grading submission (server-side gate check) → BOM/GeoJSON export with manifest validation |
 
 ## Summary
 
-- **Implemented:** 17 chunks (1, 8, 14, 15, 16, 17, 18, 19, 30, 35, 36, 37, 38, 39, 40, plus anti-gate)
-- **Partial:** 25 chunks (2, 3, 4, 5, 6, 7, 9, 10, 11, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 41, 42, 43, 44, 46, 47, 48)
-- **Absent:** 3 chunks (45, 49, 50 — plus renumbered 12/13 as noted above)
+- **Implemented:** 18 chunks (1, 8, 14, 15, 16, 17, 18, 19, 30, 35, 36, 37, 38, 39, 40, 44, 50, plus anti-gate)
+- **Partial:** 27 chunks (2, 3, 4, 5, 6, 7, 9, 10, 11, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 33, 34, 41, 42, 43, 45, 46, 47, 48)
+- **Absent:** 5 chunks (12, 13, 31, 32, 49 — chunks 12/13 are renumbered plan placeholders)
 
 LLD fiber engine chunks (35-40) are **implemented** as library code with dedicated coverage in `src/lib/lld-engines.test.ts`. All six engines have real assertions.
 
 Chunk 46 was downgraded from `implemented` to `partial` because `performance-budgets.ts` is a constants file, not a vector tile server.
 Chunks 42-43 were downgraded from `implemented` to `partial` because the hint and analytics libraries have no API/UI wiring.
+Chunks 31-32 were downgraded from `partial` to `absent`: routes-model is a bare type catalog with no UI; constructability checks are metadata-only stubs with no real geometry validation.
+Chunks 44, 50 upgraded to `implemented`: export endpoint is fully wired (GeoJSON + BOM CSV + checksums); acceptance-journey mega-test covers login→render→grade→export.
+Chunk 45 upgraded from `absent` to `partial`: WorkspaceTour and PortfolioExport exist but no certificate verification.
+Chunk 9 downgraded from `implemented` to `partial`: server-side pagination endpoint exists but the test file only validates client-side array ops.
+
+## Current verification (2026-07-20)
+
+| Check | Result |
+|---|---|
+| Lint (ESLint) | 0 errors, 0 warnings |
+| TypeScript (`tsc --noEmit`) | passed |
+| Unit/Integration tests (Vitest) | 222/222 passed (42 test files) |
+| Production build (`next build`) | passed (40 application/API routes) |
+| `git diff --check` | passed |
+
+## Branch consolidation
+
+The recovery branch (`feat/50-chunk-recovery`) should serve as the canonical development line. The following branches are **superseded** and should not be merged wholesale:
+
+- `feat/parcel-basemap-intake` — older, smaller implementation; subset of recovery
+- `feat/50-chunk-master-plan` — diverged 50+ commits; contains earlier completion claims that prompted this audit
+- `feat/saas-learning-foundation` — divergent implementation line
+- `feat/30-chunk-gis-platform` — baseline merged into recovery at branch creation
+
+## Deferred work (highest-priority remaining)
+
+1. **Design persistence and autosave** — real autosave API, revision/checkpoint storage, ETag conflict UI
+2. **Production authentication** — remove in-memory invitation fallback, refresh-token reuse detection, consistent capability enforcement, remove `/api/dev/seed`
+3. **Curriculum and grading authority** — persist student stage progress, enforce stage gates server-side, pin check versions
+4. **Instructor workflow** — review queue, map-anchored comments, tiered hints, attempt analytics, cohorts/assignments
+5. **Production data model** — PostGIS geometry columns, GIST indexes, parcel/ROW/easement/constraint tables
