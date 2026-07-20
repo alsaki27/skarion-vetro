@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/auth";
 import { getDb, schema } from "@/db";
 import { eq, and, desc } from "drizzle-orm";
+import { AutosaveSchema } from "@/lib/api-schemas";
+import { resolveProjectId } from "@/lib/project-resolver";
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
@@ -10,9 +12,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { projectId, elements, note } = await request.json();
+    const body = await request.json();
+    const parsed = AutosaveSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const { elements, note } = parsed.data;
+    const projectId = await resolveProjectId(parsed.data.projectId, auth.org_id);
     if (!projectId) {
-      return NextResponse.json({ error: "projectId required" }, { status: 400 });
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
     const db = getDb();

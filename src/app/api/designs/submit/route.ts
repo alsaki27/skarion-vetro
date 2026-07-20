@@ -4,6 +4,9 @@ import { getDb, schema } from "@/db";
 import { eq, and, desc } from "drizzle-orm";
 import { runGrading } from "@/lib/grading/engine";
 import { PROJECTS } from "@/lib/projects";
+import { SubmissionSchema } from "@/lib/api-schemas";
+import { resolveProjectId } from "@/lib/project-resolver";
+import { loadAddresses, loadParcels } from "@/lib/basemap-loader";
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
@@ -12,15 +15,31 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { projectId, designId, elements } = await request.json();
-    if (!projectId || !elements) {
-      return NextResponse.json({ error: "projectId and elements required" }, { status: 400 });
+    const body = await request.json();
+    const parsed = SubmissionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const project = PROJECTS[projectId];
+    const slug = parsed.data.projectId;
+    const projectId = await resolveProjectId(slug, auth.org_id);
+    if (!projectId) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    const project = PROJECTS[slug];
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
+
+    const { elements, designId } = parsed.data;
+
+    // Load basemap data for authoritative grading (matching /api/grading behavior)
+    let basemapData: unknown;
+    try {
+      const [parcelsResult, addressesResult] = await Promise.all([loadParcels(slug), loadAddresses(slug)]);
+      basemapData = { parcels: parcelsResult, addresses: addressesResult };
+    } catch { /* continue without basemap */ }
 
     const db = getDb();
     if (!db) {
@@ -36,8 +55,8 @@ export async function POST(request: NextRequest) {
       snapshotNote: `submission-${Date.now()}`,
     }).returning();
 
-    // Run grading server-side
-    const result = runGrading(project, elements as never);
+    // Run grading server-side with basemap data
+    const result = runGrading(project, elements as never, basemapData as never);
 
     // Save grading result
     const [gradingResult] = await db.insert(schema.gradingResults).values({
