@@ -109,28 +109,47 @@ export function WorkspaceOutputs({ onClose }: { onClose: () => void }) {
             All values computed from your design by the Skarion-VETRO LLD engine suite.
             BOM reconciles to placed elements. Splice matrix derives from cable topology.
           </div>
-          <button
-            onClick={async () => {
-              const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-              const store = getStore.getState();
-              const res = await fetch("/api/designs/export", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-                body: JSON.stringify({ projectId: "p10-parkside-georgetown", elements: Object.values(store.elements) }),
-              });
-              const data = await res.json() as { manifest: Record<string, unknown>; csv: string; geojson: string };
-              const blob = new Blob([data.csv], { type: "text/csv" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "design-export.csv";
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="w-full rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-600"
-          >
-            Export BOM CSV
-          </button>
+          {/* Export */}
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+                const store = getStore.getState();
+                const res = await fetch("/api/export/package", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                  body: JSON.stringify({ projectId: "p10-parkside-georgetown", elements: Object.values(store.elements), format: "geojson+csv" }),
+                });
+                const data = await res.json() as { manifest: Record<string, unknown>; geojson: { checksum: string; featureCount: number }; csv: { lineCount: number }; checksum: string };
+                alert(`Export complete!\n\nChecksum: ${data.checksum.substring(0, 16)}...\nFeatures: ${data.geojson.featureCount}\nCSV lines: ${data.csv.lineCount}`);
+              }}
+              className="flex-1 rounded bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-600"
+            >
+              Export Package (GeoJSON + CSV)
+            </button>
+            <button
+              onClick={async () => {
+                const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+                const store = getStore.getState();
+                const res = await fetch("/api/designs/export", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                  body: JSON.stringify({ projectId: "p10-parkside-georgetown", elements: Object.values(store.elements) }),
+                });
+                const data = await res.json() as { csv: string };
+                const blob = new Blob([data.csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "design-export.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="rounded bg-zinc-700 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-600"
+            >
+              Download CSV
+            </button>
+          </div>
         </div>
       </div>
     </div>

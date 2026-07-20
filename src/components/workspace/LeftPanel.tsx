@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDesignStore } from "@/lib/store";
 import { LayersPanel } from "./LayersPanel";
 import { DataCatalogPanel } from "./DataCatalogPanel";
@@ -175,16 +175,52 @@ function IssueCard({ issue, onSelect }: { issue: { checkId: string; message: str
 }
 
 function QATab() {
-  return (
-    <div className="text-xs text-zinc-400 space-y-3">
-      <div className="font-medium text-zinc-300">QA Checklist</div>
-      <div className="text-zinc-500">
-        QA review features available after submission. Submit your design to trigger the QA workflow.
+  const [checklist, setChecklist] = useState<Array<{ id: string; title: string; description: string; isMandatory: boolean }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("/api/qa/checklist?stage=hld", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json() as { items?: Array<{ id: string; title: string; description: string; isMandatory: boolean }> };
+        setChecklist(data.items ?? []);
+      } catch {
+        setChecklist([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <div className="text-xs text-zinc-500">Loading QA checklist...</div>;
+
+  if (checklist.length === 0) {
+    return (
+      <div className="text-xs text-zinc-500">
+        Submit your design to access the QA checklist.
       </div>
-      <div className="space-y-1 text-[10px] text-zinc-600">
-        <div>HLD Checklist: 6 items (all mandatory)</div>
-        <div>LLD Checklist: 5 items (all mandatory)</div>
-        <div>Preflight: runs automatically before human review</div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-[10px] font-semibold uppercase text-zinc-500">HLD QA Checklist ({checklist.length} items)</div>
+      {checklist.map((item) => (
+        <div key={item.id} className="rounded border border-zinc-800 p-2">
+          <div className="flex items-start justify-between gap-2">
+            <span className="text-xs text-zinc-300">{item.title}</span>
+            {item.isMandatory && (
+              <span className="text-[10px] text-red-400 font-medium shrink-0">Required</span>
+            )}
+          </div>
+          <div className="text-[10px] text-zinc-500 mt-0.5">{item.description}</div>
+        </div>
+      ))}
+      <div className="text-[10px] text-zinc-600 mt-2 pt-2 border-t border-zinc-800">
+        Complete all mandatory items before submitting for review.
       </div>
     </div>
   );
