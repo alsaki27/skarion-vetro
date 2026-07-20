@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
     // This is the server-authoritative enforcement: the client's score is
     // ignored entirely — the server re-runs the full check registry.
     const gateChecks = result.checks.filter((c) => GATE_CHECK_IDS.has(c.checkId));
-    const qualityChecks = result.checks.filter((c) => !GATE_CHECK_IDS.has(c.checkId));
     const gatesPassed = gateChecks.every((c) => c.status === "pass");
     const gateFailures = gateChecks.filter((c) => c.status === "fail");
 

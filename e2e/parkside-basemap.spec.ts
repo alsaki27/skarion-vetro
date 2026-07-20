@@ -42,9 +42,10 @@ test("basemap layers render on Parkside Georgetown", async ({ page }) => {
     const map = (window as unknown as Record<string, unknown>).__mapDebug as Record<string, unknown> | undefined;
     if (!map) return { error: "__mapDebug not set" };
     try {
-      const parcelSrc = (map as any).getSource("workspace-parcels");
-      const addrSrc = (map as any).getSource("workspace-addresses");
-      const qrf = (map as any).queryRenderedFeatures.bind(map);
+      const m = map as Record<string, unknown> & { getSource: (id: string) => unknown; queryRenderedFeatures: (...args: unknown[]) => unknown[] };
+      const parcelSrc = m.getSource("workspace-parcels");
+      const addrSrc = m.getSource("workspace-addresses");
+      const qrf = m.queryRenderedFeatures.bind(m);
       return {
         parcelSourceExists: !!parcelSrc,
         addressSourceExists: !!addrSrc,

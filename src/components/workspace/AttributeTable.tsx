@@ -70,6 +70,7 @@ export function AttributeTable({ projectId: _projectId }: AttributeTableProps) {
     return filtered;
   }, [elements, layerType, filterText, sortKey, sortAsc]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,

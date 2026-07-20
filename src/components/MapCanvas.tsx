@@ -472,7 +472,6 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
     map.on("dblclick", handleDblClick);
 
     // Rect-drag multi-select (C2: shift-click + rect-drag for premise selection)
-    const dragRect: { start: LngLat; end: LngLat } | null = null;
     let dragActive = false;
     const handleMouseDown = (ev: MapMouseEvent) => {
       const s = stateRef.current;
@@ -807,7 +806,7 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
       map.off("load", handleStyleRefresh);
       map.off("idle", tryEnsureLayers);
     };
-  }, [basemapData, selectedBasemapFeature]);
+  }, [basemapData, selectedBasemapFeature, project.boundary]);
 
   // Drive hover/selected visual state on the parcel fill layer.
   useEffect(() => {

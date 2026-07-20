@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { booleanPointInPolygon, point } from "@turf/turf";
 import { p1Greenfield } from "@/lib/projects/p1-greenfield";
 import { runGrading } from "@/lib/grading/engine";
 import { loadAddresses, loadParcels } from "@/lib/basemap-loader";
@@ -159,7 +160,6 @@ describe("boundary-derived demand and checks", () => {
 
   it("derived serviceable parcel set from boundary + OPEN + SINGLE FAMILY", () => {
     if (!boundary) return; // skip if boundary not defined
-    const { booleanPointInPolygon, point } = require("@turf/turf");
     const insideIds = new Set<string>();
 
     for (const addr of addresses) {

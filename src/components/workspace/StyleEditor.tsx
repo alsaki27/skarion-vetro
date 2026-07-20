@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { LayerStyle, Rule, Symbolizer, LabelRule } from "@/lib/styles";
+import type { LayerStyle, Rule, Symbolizer } from "@/lib/styles";
 
 interface StyleEditorProps {
   style: LayerStyle;
@@ -12,7 +12,7 @@ interface StyleEditorProps {
 export default function StyleEditor({ style, onChange, onClose }: StyleEditorProps) {
   const [local, setLocal] = useState<LayerStyle>(style);
 
-  const updateRule = (ruleId: string, patch: Partial<Rule>) => {
+  const _updateRule = (ruleId: string, patch: Partial<Rule>) => {
     setLocal((prev) => ({
       ...prev,
       rules: prev.rules.map((r) => r.id === ruleId ? { ...r, ...patch } : r),

@@ -115,7 +115,7 @@ All checks are pure functions over a `DesignContext` (elements + graph + contain
 9 project fixtures in `src/lib/projects/`:
 
 | Project | Environment | Difficulty |
-|---|---|---|
+|---|---|---|---|
 | P1: Greenfield Build | Aerial | Beginner |
 | P2: Oakwood Underground | Underground | Beginner |
 | P3: Sunset Ridge Aerial | Aerial | Intermediate |
@@ -125,6 +125,7 @@ All checks are pure functions over a `DesignContext` (elements + graph + contain
 | P7: Parkview MDU | Mixed | Advanced |
 | P8: Westside Village HLD | Mixed | Capstone |
 | P9: Riverside Crossing | Mixed | Capstone |
+| P10: Parkside Georgetown | Mixed | Real-world |
 
 Each project includes pre-loaded elements, constraints (max spans, fiber counts, drop lengths), grading weights, and an optimal solution for efficiency benchmarking.
 
@@ -202,8 +203,8 @@ Requires a Cloudflare account and `NEON_DATABASE_URL` + `JWT_SECRET` configured.
 
 ### High-impact areas
 
-1. **Add tests** — the codebase has zero tests. Start with unit tests for the grading engine (`src/lib/grading/engine.ts`), then add integration tests for API routes.
-2. **Auth endpoints** — implement `/api/auth/refresh` (token refresh) and `/api/auth/logout`. The `createRefreshToken` function exists in `src/lib/auth/tokens.ts` but has no consuming route.
+1. **Expand test coverage** — the codebase has 42 test files and 222 passing unit tests. Add integration tests for API routes and end-to-end Playwright journeys for remaining scenarios.
+2. **Auth endpoints** — `/api/auth/refresh` (token refresh) and `/api/auth/logout` routes are implemented. Add refresh token reuse detection tests and disable the in-memory invitation fallback.
 3. **Input validation** — `zod` is already a dependency but unused. Add schema validation to every API route (`src/app/api/*/route.ts`).
 4. **Error boundaries** — add React error boundaries around `MapCanvas` and `SidePanel` so a component crash doesn't take down the page.
 5. **In-memory invite tokens** — `INVITE_TOKENS` in the auth routes is a module-level `Map`. Move to a database-backed table for production.

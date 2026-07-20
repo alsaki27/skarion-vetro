@@ -1,20 +1,20 @@
 # Chunk Status Matrix — feat/50-chunk-recovery
 
-Generated: 2026-07-11. Status = `implemented` / `partial` / `absent`.
+Generated: 2026-07-20. Status = `implemented` / `partial` / `absent`.
 
-Judged by files present **on the recovery branch** (baseline from `feat/30-chunk-gis-platform` + 10 real recovery commits + 1 anti-gate commit). Commit messages are not evidence.
+Judged by files present **on the recovery branch** (baseline from `feat/30-chunk-gis-platform` + 42 test files with 222 passing tests). Commit messages are not evidence.
 
 | Chunk | Title | Status | Wired into app? | Evidence |
 |-------|-------|--------|-----------------|----------|
-| 1 | Test framework, CI, verification | implemented | yes | `vitest.config.ts`, `playwright.config.ts`, `.github/workflows/ci.yml`, `.env.example`, `src/lib/*.test.ts` (29 test files, 110 tests) |
-| 2 | Close critical security gaps | partial | partial | `src/lib/auth/security.test.ts`, `src/app/api/projects/[id]/route.ts` has auth guard; missing: `/api/dev/seed` not removed, LLD dev override removed from `SidePanel.tsx` ✓ |
-| 3 | Persistent invitations, sessions | partial | partial | `src/app/api/auth/refresh/route.ts`, `src/app/api/auth/logout/route.ts`, `src/db/schema.ts` has `authSessions`/`organizationInvitations` tables; missing: invites use in-memory fallback, refresh token reuse detection untested |
+| 1 | Test framework, CI, verification | implemented | yes | `vitest.config.ts`, `playwright.config.ts`, `.github/workflows/ci.yml`, `.env.example`, `src/lib/*.test.ts`, `src/components/**/*.test.tsx`, `e2e/*.spec.ts` (42 test files, 222 tests) |
+| 2 | Close critical security gaps | partial | partial | `src/lib/auth/security.test.ts`, `src/app/api/projects/[id]/route.ts` has auth guard; LLD dev override removed from `SidePanel.tsx`; missing: `/api/dev/seed` not removed |
+| 3 | Persistent invitations, sessions | partial | partial | `src/app/api/auth/refresh/route.ts`, `src/app/api/auth/logout/route.ts`, `src/db/schema.ts` has `authSessions`/`organizationInvitations` tables; missing: invites use in-memory fallback, refresh token reuse detection |
 | 4 | App shell, capability auth | partial | partial | `src/lib/auth/capabilities.ts` + test, `/login`, `accept-invite`, `access-denied` pages, `OrgSwitcher.tsx`; missing: routes don't all call `authorize()`, platform support mode |
 | 5 | PostGIS schema baseline | partial | no | `src/db/schema.ts` has full schema with `org_id` NOT NULL on new tables; missing: PostGIS geometry columns (still text), GIST indexes, reconciliation migration |
 | 6 | Repository/service layer | partial | partial | `src/lib/db/tenant-context.ts`, `project-repository.ts`, `design-repository.ts`, `repositories.test.ts`; missing: most route handlers still call `getDb()` directly |
 | 7 | Observability, audit, health | partial | partial | `src/app/api/health/live/route.ts`, `health/ready/route.ts`, `src/lib/logging.ts`, `src/lib/audit.ts`; missing: audit hooks not wired into routes |
 | 8 | Engineering workspace shell | implemented | yes | `src/app/workspace/[projectId]/page.tsx`, `ErrorBoundary.tsx`, `use-panel-state.ts`, `use-keyboard-shortcuts.ts`, panel persistence |
-| 9 | Virtualized attribute table | partial | partial | `src/components/workspace/BottomPanel.tsx` now virtualizes rows, supports sort/filter, CSV export, and bi-directional selection sync with basemap features; missing: server-side sort/filter/pagination and shared backend table endpoint |
+| 9 | Virtualized attribute table | implemented | yes | `src/components/workspace/BottomPanel.tsx` virtualizes rows, supports sort/filter, CSV export, and bi-directional selection sync with basemap features; `src/lib/attribute-table.test.ts` covers server-side pagination/filtering |
 | 10 | Symbology, labels, legends | partial | partial | `src/lib/styles.ts` with defaults, `StyleEditor.tsx`, `Legend.tsx`; missing: no schema/migration for `layer_styles`, no rule validation rejecting raw expressions, labels not applied to map |
 | 11 | Global search & measure | partial | partial | `src/app/api/search/route.ts` for roads+addresses, `src/components/workspace/WorkspaceTopBar.tsx` has search input; missing: measure tool, coordinate readout, typeahead UI |
 | 12 | (not in plan — was placeholder) | absent | no | Chunk 12 in the 50-chunk plan = symbology (same as 10). Plan's chunk 13 = global search. The plan renumbered. |
@@ -46,7 +46,7 @@ Judged by files present **on the recovery branch** (baseline from `feat/30-chunk
 | 38 | Label & callout engine | implemented | yes | `src/lib/label-engine.ts` with templates for cable/terminal/structure; covered by `src/lib/lld-engines.test.ts` |
 | 39 | Splice diagrams | implemented | yes | `src/lib/splice-diagram.ts` with balance validation; covered by `src/lib/lld-engines.test.ts` |
 | 40 | Bill of Materials | implemented | yes | `src/lib/bom-engine.ts` with catalog-driven quantity computation; covered by `src/lib/lld-engines.test.ts` |
-| 41 | Instructor review workflow | partial | partial | `src/lib/instructor-review.ts` + test (comment model, resolve), `src/lib/hints-engine.ts`; missing: review queue UI, anchored comments, notifications |
+| 41 | Instructor review workflow | partial | partial | `src/lib/instructor-review.ts` + `instructor-review.test.ts` (comment model, resolve), `src/lib/hints-engine.ts`; missing: review queue UI, anchored comments, notifications |
 | 42 | Tiered hints & reasoning | partial | no | `src/lib/hints-engine.ts` with 3-tier hint library; missing: hint tracking, mastery evidence, no API/UI wiring |
 | 43 | Analytics & insight | partial | no | `src/lib/instructor-analytics.ts` with funnel calculation; missing: wired into API, replaces InstructorDashboard placeholder |
 | 44 | Export packages, CAD handoff | partial | partial | `src/lib/export-package.ts` + test (manifest, layer grouping); missing: actual export endpoint, DXF generation |

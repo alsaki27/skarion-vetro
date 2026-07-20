@@ -17,7 +17,7 @@ export interface MSTDevice {
   sparePorts: number;
 }
 
-const PORT_CAPACITIES = [4, 6, 8, 12, 24] as const;
+const _PORT_CAPACITIES = [4, 6, 8, 12, 24] as const;
 
 export function createServiceGroup(mstId: string, portCount: number): ServiceGroup {
   return { id: crypto.randomUUID(), mstId, premiseIds: [], portDemand: 0, capacity: portCount, sparePorts: portCount, status: "draft" };

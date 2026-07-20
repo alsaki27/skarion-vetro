@@ -52,9 +52,9 @@ export interface LayerStyle {
 }
 
 const VALID_COLORS = /^#[0-9a-fA-F]{6}$/;
-const SAFE_ICONS = new Set(["mst", "handhole", "vault", "flowerpot", "pole", "co", "premise", "fdh", "closure", "splitter"]);
+const _SAFE_ICONS = new Set(["mst", "handhole", "vault", "flowerpot", "pole", "co", "premise", "fdh", "closure", "splitter"]);
 
-function validateColor(c: string): boolean {
+function _validateColor(c: string): boolean {
   return VALID_COLORS.test(c);
 }
 

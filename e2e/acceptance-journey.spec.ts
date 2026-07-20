@@ -19,7 +19,7 @@ test("full acceptance journey — login → render → submit → export", async
 
   // 2. Verify map renders with basemap layers (reuse A1's proven approach)
   await page.waitForFunction(() => {
-    const map = (window as Record<string, unknown>).__mapDebug as Record<string, unknown> | undefined;
+    const map = (window as unknown as Record<string, unknown>).__mapDebug as Record<string, unknown> | undefined;
     if (!map || !(map.isStyleLoaded as () => boolean)()) return false;
     return (map.getSource as (id: string) => unknown)("workspace-parcels") != null;
   }, { timeout: 30000 });
@@ -28,7 +28,7 @@ test("full acceptance journey — login → render → submit → export", async
 
   // 3. Verify rendering state
   const start = await page.evaluate(() => {
-    const map = (window as Record<string, unknown>).__mapDebug as Record<string, unknown>;
+    const map = (window as unknown as Record<string, unknown>).__mapDebug as Record<string, unknown>;
     const qrf = map.queryRenderedFeatures as (q: unknown, o: Record<string, unknown>) => Array<unknown>;
     return {
       hasParcels: (map.getSource as (id: string) => unknown)("workspace-parcels") != null,
@@ -41,11 +41,9 @@ test("full acceptance journey — login → render → submit → export", async
   expect(start.rendered).toBe(true);
 
   // 4. Grading submit flow
-  const token = await page.evaluate(() => localStorage.getItem("token"));
-
   // Draw a simple cable from CO to a vault via the store API
   await page.evaluate(() => {
-    const store = (window as Record<string, unknown>).__zustandStore as Record<string, unknown>;
+    const store = (window as unknown as Record<string, unknown>).__zustandStore as Record<string, unknown>;
     if (store?.setState) {
       (store.setState as (s: Record<string, unknown>) => void)({ tool: "cable" });
     }
@@ -54,7 +52,7 @@ test("full acceptance journey — login → render → submit → export", async
   // Submit for grading via API
   const gradeRes = await page.evaluate(async () => {
     const token = localStorage.getItem("token");
-    const store = (window as Record<string, unknown>).__zustandStore as Record<string, unknown> | undefined;
+    const store = (window as unknown as Record<string, unknown>).__zustandStore as Record<string, unknown> | undefined;
     const elements = store?.getState ? (store.getState as () => Record<string, unknown>)().elements : {};
     const res = await fetch("/api/grading", {
       method: "POST",

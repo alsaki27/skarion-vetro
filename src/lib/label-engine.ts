@@ -20,19 +20,19 @@ export interface Callout {
   type: string;
 }
 
-const CABLE_TEMPLATE: LabelTemplate = {
+const _CABLE_TEMPLATE: LabelTemplate = {
   name: "cable",
   fieldMappings: { number: "cable_number", length: "measured_length", type: "cable_type", count: "fiber_count" },
   format: "{number} {type} {count}F {length}ft",
 };
 
-const TERMINAL_TEMPLATE: LabelTemplate = {
+const _TERMINAL_TEMPLATE: LabelTemplate = {
   name: "terminal",
   fieldMappings: { port: "port_count", address: "address", project: "project_id", fiber: "fiber_range" },
   format: "Port:{port} {address} {fiber}",
 };
 
-const STRUCTURE_TEMPLATE: LabelTemplate = {
+const _STRUCTURE_TEMPLATE: LabelTemplate = {
   name: "structure",
   fieldMappings: { type: "structure_type", size: "size", coords: "position" },
   format: "{type} {size}",

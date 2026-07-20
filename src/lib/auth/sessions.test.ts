@@ -10,7 +10,6 @@ describe("session management", () => {
   });
 
   it("reuse detection revokes family", () => {
-    const family = crypto.randomUUID();
     const revoked = true;
     expect(revoked).toBe(true);
   });

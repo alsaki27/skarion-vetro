@@ -1,6 +1,5 @@
 "use client";
 
-import { useDesignStore } from "@/lib/store";
 import { useState } from "react";
 
 const TOUR_STEPS = [

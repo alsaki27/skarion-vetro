@@ -78,7 +78,7 @@ export interface DedupCandidate {
   confidence: number;
 }
 
-const SPATIAL_TOLERANCE_METERS = 10;
+const _SPATIAL_TOLERANCE_METERS = 10;
 
 export function deduplicate(candidates: DedupCandidate[]): { keep: string[]; remove: string[]; matches: string[][] } {
   const groups = new Map<string, string[]>();

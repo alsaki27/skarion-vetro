@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import type { ProjectFixture } from "@/lib/types";
 import { useDesignStore } from "@/lib/store";
 
@@ -23,7 +23,6 @@ export function WorkspaceTopBar({
   onOutputs?: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [focusIdx, setFocusIdx] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
   const grading = useDesignStore((s) => s.grading);
@@ -35,8 +34,8 @@ export function WorkspaceTopBar({
   const selectElement = useDesignStore((s) => s.select);
   const issueCount = grading?.checks.filter((c) => c.status === "fail").length ?? 0;
 
-  useEffect(() => {
-    if (search.length < 2) { setResults([]); return; }
+  const results = useMemo(() => {
+    if (search.length < 2) return [];
     const q = search.toLowerCase();
     const items: SearchResult[] = [];
 
@@ -67,13 +66,11 @@ export function WorkspaceTopBar({
       }
     }
 
-    setResults(items.slice(0, 30));
-    setFocusIdx(-1);
+    return items.slice(0, 30);
   }, [search, basemapData, elements]);
 
   const pick = (r: SearchResult) => {
     setSearch("");
-    setResults([]);
     if (r.kind === "element") {
       selectElement(r.id);
     } else {
@@ -85,7 +82,7 @@ export function WorkspaceTopBar({
     if (e.key === "ArrowDown") { e.preventDefault(); setFocusIdx((i) => Math.min(i + 1, results.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setFocusIdx((i) => Math.max(i - 1, -1)); }
     else if (e.key === "Enter" && focusIdx >= 0 && results[focusIdx]) { e.preventDefault(); pick(results[focusIdx]); }
-    else if (e.key === "Escape") { setSearch(""); setResults([]); searchRef.current?.blur(); }
+    else if (e.key === "Escape") { setSearch(""); searchRef.current?.blur(); }
   };
 
   return (
@@ -100,7 +97,7 @@ export function WorkspaceTopBar({
           ref={searchRef}
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setFocusIdx(-1); }}
           onKeyDown={handleKey}
           placeholder="Search addresses, parcels, elements…"
           className="w-full rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:ring-1 focus:ring-zinc-600"
