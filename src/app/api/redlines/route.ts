@@ -1,80 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/auth";
-import { type Redline, type FieldObservation, type DesignChange } from "@/lib/redline-model";
+import { z } from "zod";
+
+const RedlineSchema = z.object({
+  type: z.enum(["redline","observation","change"]),
+  revisionId: z.string().optional(),
+  projectId: z.string().optional(),
+  category: z.string().optional(),
+  severity: z.enum(["critical","major","minor","advisory"]).optional(),
+  elementIds: z.array(z.string()).optional(),
+  geometry: z.any().optional(),
+  callout: z.string().optional(),
+  description: z.string().optional(),
+  conditionType: z.string().optional(),
+  confidence: z.enum(["confirmed","reported","estimated"]).optional(),
+  photos: z.array(z.string()).optional(),
+  coordinates: z.tuple([z.number(), z.number()]).optional(),
+  revisionBefore: z.string().optional(),
+  reason: z.string().optional(),
+  urgency: z.enum(["routine","expedited","emergency"]).optional(),
+  affectedScope: z.array(z.string()).optional(),
+});
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
   if (!auth) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
-  try {
-    const body = await request.json();
-    const { type, ...data } = body;
+  const body = await request.json();
+  const parsed = RedlineSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
 
-    if (type === "redline") {
-      const redline: Redline = {
-        id: `redline_${Date.now()}`,
-        revisionId: data.revisionId,
-        authorId: auth.sub,
-        category: data.category ?? "documentation",
-        severity: data.severity ?? "minor",
-        elementIds: data.elementIds ?? [],
-        geometry: data.geometry,
-        callout: data.callout ?? "",
-        description: data.description ?? "",
-        status: "open",
-        createdAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ created: true, redline });
-    }
-
-    if (type === "observation") {
-      const obs: FieldObservation = {
-        id: `obs_${Date.now()}`,
-        projectId: data.projectId,
-        authorId: auth.sub,
-        featureId: data.featureId,
-        conditionType: data.conditionType ?? "other",
-        confidence: data.confidence ?? "reported",
-        description: data.description ?? "",
-        photos: data.photos,
-        coordinates: data.coordinates,
-        createdAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ created: true, observation: obs });
-    }
-
-    if (type === "change") {
-      const change: DesignChange = {
-        id: `change_${Date.now()}`,
-        projectId: data.projectId,
-        revisionBefore: data.revisionBefore,
-        initiatorId: auth.sub,
-        reason: data.reason ?? "",
-        urgency: data.urgency ?? "routine",
-        affectedScope: data.affectedScope ?? [],
-        status: "draft",
-        createdAt: new Date().toISOString(),
-      };
-      return NextResponse.json({ created: true, change });
-    }
-
-    return NextResponse.json({ error: "Type must be redline, observation, or change" }, { status: 400 });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
-  }
+  const now = new Date().toISOString();
+  const created = { ...parsed.data, id: `${parsed.data.type}_${Date.now()}`, authorId: auth.sub, status: "open", createdAt: now };
+  return NextResponse.json({ created: true, [parsed.data.type]: created });
 }
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthFromRequest(request);
   if (!auth) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-
-  try {
-    return NextResponse.json({
-      redlines: [],
-      observations: [],
-      changes: [],
-    });
-  } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
-  }
+  return NextResponse.json({ redlines: [], observations: [], changes: [] });
 }

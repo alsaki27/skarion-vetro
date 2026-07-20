@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       saved: true,
       revision: result[0].id,
       previousRevision: existing?.id ?? null,
+      etag: `${result[0].id}:${new Date(result[0].createdAt!).getTime()}`,
     });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
