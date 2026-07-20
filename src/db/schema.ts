@@ -580,3 +580,135 @@ export const addressPoints = pgTable("address_points", {
   index("idx_address_points_project").on(table.projectId),
   index("idx_address_points_org").on(table.orgId),
 ]);
+
+// ===========================================================================
+// GIS Workspace — Parcels, premises, ROW, constraints (Chunks 21-22, migration 0007)
+// ===========================================================================
+
+export const parcels = pgTable("parcels", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  layerId: uuid("layer_id").references(() => projectLayers.id),
+  parcelExternalId: text("parcel_external_id").notNull(),
+  siteAddress: text("site_address"),
+  ownerName: text("owner_name"),
+  geometry: text("geometry").notNull(),
+  sourceId: uuid("source_id").references(() => dataSources.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_parcels_org").on(table.orgId),
+  index("idx_parcels_project").on(table.projectId),
+  index("idx_parcels_external_id").on(table.parcelExternalId),
+]);
+
+export const premises = pgTable("premises", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  parcelId: uuid("parcel_id").references(() => parcels.id),
+  addressId: uuid("address_id").references(() => addressPoints.id),
+  buildingType: text("building_type", { enum: ["single_family", "multi_dwelling", "commercial", "mdu", "other"] }),
+  geometry: text("geometry").notNull(),
+  serviceability: text("serviceability", { enum: ["serviceable", "pending_review", "not_serviceable"] }).notNull().default("pending_review"),
+  status: text("status", { enum: ["active", "inactive", "under_construction"] }).notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_premises_org").on(table.orgId),
+  index("idx_premises_project").on(table.projectId),
+  index("idx_premises_parcel").on(table.parcelId),
+]);
+
+export const rowEasements = pgTable("row_easements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  layerId: uuid("layer_id").references(() => projectLayers.id),
+  type: text("type", { enum: ["row", "easement", "utility_corridor", "setback"] }).notNull(),
+  widthFt: integer("width_ft"),
+  geometry: text("geometry").notNull(),
+  sourceId: uuid("source_id").references(() => dataSources.id),
+  isAuthoritative: boolean("is_authoritative").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_row_easements_org").on(table.orgId),
+  index("idx_row_easements_project").on(table.projectId),
+]);
+
+export const constraints = pgTable("constraints", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  constraintType: text("constraint_type", { enum: ["environmental", "zoning", "flood_zone", "historic", "wetland", "other"] }).notNull(),
+  geometry: text("geometry").notNull(),
+  properties: jsonb("properties").notNull().default({}),
+  sourceId: uuid("source_id").references(() => dataSources.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_constraints_org").on(table.orgId),
+  index("idx_constraints_project").on(table.projectId),
+]);
+
+// ===========================================================================
+// Curriculum, reviews, notifications (Chunks 24, 41, migration 0008)
+// ===========================================================================
+
+export const curriculumVersions = pgTable("curriculum_versions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  versionNumber: integer("version_number").notNull(),
+  projectId: uuid("project_id").references(() => projects.id),
+  stages: jsonb("stages").notNull().default([]),
+  isPublished: boolean("is_published").notNull().default(false),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_curriculum_versions_org").on(table.orgId),
+  uniqueIndex("curriculum_versions_org_name_version_idx").on(table.orgId, table.name, table.versionNumber),
+]);
+
+export const reviewComments = pgTable("review_comments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  revisionId: uuid("revision_id"),
+  elementId: text("element_id"),
+  authorId: uuid("author_id").notNull().references(() => users.id),
+  text: text("text").notNull(),
+  anchor: jsonb("anchor").default({}),
+  threadParentId: uuid("thread_parent_id"),
+  status: text("status", { enum: ["open", "resolved_by_student", "resolved_by_instructor"] }).notNull().default("open"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+}, (table) => [
+  index("idx_review_comments_org").on(table.orgId),
+  index("idx_review_comments_revision").on(table.revisionId),
+]);
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type", { enum: ["invitation", "assignment", "submission_graded", "review_comment", "review_resolved", "due_date", "job_failed"] }).notNull(),
+  title: text("title").notNull(),
+  body: text("body"),
+  link: text("link"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_notifications_user_unread").on(table.userId, table.isRead, table.createdAt),
+]);
+
+export const dataQualityMetrics = pgTable("data_quality_metrics", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  sourceId: uuid("source_id").notNull().references(() => dataSources.id, { onDelete: "cascade" }),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  completenessPct: integer("completeness_pct"),
+  duplicateCount: integer("duplicate_count"),
+  invalidGeometryCount: integer("invalid_geometry_count"),
+  freshnessDays: integer("freshness_days"),
+  computedAt: timestamp("computed_at", { withTimezone: true }).defaultNow(),
+}, (table) => [
+  index("idx_data_quality_metrics_source").on(table.sourceId),
+]);
