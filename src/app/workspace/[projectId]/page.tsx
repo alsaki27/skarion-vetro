@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { PROJECTS } from "@/lib/projects";
@@ -17,6 +17,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import BriefModal from "@/components/BriefModal";
 import { usePanelState } from "@/lib/use-panel-state";
 import { useKeyboardShortcuts } from "@/lib/use-keyboard-shortcuts";
+import { useAutosave } from "@/components/workspace/use-autosave";
 
 const MapCanvas = dynamic(() => import("@/components/MapCanvas"), {
   ssr: false,
@@ -39,10 +40,21 @@ export default function WorkspacePage({
   const [outputsOpen, setOutputsOpen] = useState(false);
   const [gradeOpen, setGradeOpen] = useState(false);
   const { state, set, toggleLeft, toggleRight, toggleBottom } = usePanelState(projectId);
+  const { status: autosaveStatus, lastSavedAt, markDirty } = useAutosave(projectId);
 
   useEffect(() => {
     if (project) loadElements(project.preloadedElements);
   }, [project, loadElements]);
+
+  // Mark dirty when elements change (only after initial load)
+  const elementsRef = useRef(useDesignStore.getState().elements);
+  const elements = useDesignStore((s) => s.elements);
+  useEffect(() => {
+    if (elementsRef.current !== elements) {
+      elementsRef.current = elements;
+      markDirty();
+    }
+  }, [elements, markDirty]);
 
   useKeyboardShortcuts(
     useMemo(() => ({
@@ -224,7 +236,7 @@ export default function WorkspacePage({
         </div>
       </div>
 
-      <WorkspaceStatusBar />
+      <WorkspaceStatusBar autosaveStatus={autosaveStatus} autosaveTime={lastSavedAt} />
 
       {briefOpen && (
         <BriefModal project={project} onClose={() => setBriefOpen(false)} />

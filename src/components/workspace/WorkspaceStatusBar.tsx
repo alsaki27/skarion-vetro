@@ -2,7 +2,7 @@
 
 import { useDesignStore } from "@/lib/store";
 
-export function WorkspaceStatusBar() {
+export function WorkspaceStatusBar({ autosaveStatus, autosaveTime }: { autosaveStatus?: string; autosaveTime?: Date | null }) {
   const selectedId = useDesignStore((s) => s.selectedId);
   const elements = useDesignStore((s) => s.elements);
   const grading = useDesignStore((s) => s.grading);
@@ -29,10 +29,24 @@ export function WorkspaceStatusBar() {
     }
   }
 
+  const autosaveIcon: Record<string, string> = {
+    idle: "💾",
+    dirty: "📝",
+    saving: "⏳",
+    saved: "✅",
+    error: "❌",
+  };
+
   return (
     <div className="flex items-center gap-4 border-t border-zinc-800 bg-zinc-900 px-3 py-0.5 text-[10px] text-zinc-500 shrink-0">
       <span>CRS: WGS84 (EPSG:4326)</span>
       <span className="border-l border-zinc-700 pl-4">{summary}</span>
+      {autosaveStatus && (
+        <span className={`border-l border-zinc-700 pl-4 ${autosaveStatus === "error" ? "text-red-400" : autosaveStatus === "saved" ? "text-green-400" : "text-zinc-400"}`}>
+          {autosaveIcon[autosaveStatus] ?? ""} {autosaveStatus}
+          {autosaveTime && autosaveStatus === "saved" ? ` at ${autosaveTime.toLocaleTimeString()}` : ""}
+        </span>
+      )}
       {issueCount > 0 && (
         <span className="border-l border-zinc-700 pl-4 text-red-400 font-medium">
           {issueCount} issue{issueCount !== 1 ? "s" : ""}
