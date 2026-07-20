@@ -1,6 +1,6 @@
 # Skarion-VETRO
 
-**AI-guided OSP fiber network design training** — an open-source educational platform where students build real outside-plant (OSP) fiber designs on a live map and receive instant deterministic grading.
+**Deterministic OSP fiber network design training** — an open-source educational platform where students build real outside-plant (OSP) fiber designs on a live map using real GIS data and receive instant server-authoritative grading.
 
 ![Build Status](https://img.shields.io/badge/build-passing-22c55e)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000?logo=next.js)
@@ -11,10 +11,10 @@
 
 ## Goals
 
-- **Teach OSP fiber design** through 9 progressively challenging projects (P1–P9) spanning aerial, underground, and mixed environments
-- **Provide instant feedback** via a deterministic rule engine with 13+ checks across connectivity, compliance, efficiency, containment, and low-level design
-- **Simulate real design gates** — pass HLD (high-level design) to unlock LLD (low-level design) with splice tables and fiber assignments
-- **Build a portfolio** — export completed designs as structured JSON
+- **Teach OSP fiber design** through 10 progressively challenging projects (P1–P10) spanning aerial, underground, and mixed environments, including a real Williamson County dataset
+- **Provide instant feedback** via a deterministic rule engine with 19 checks across connectivity, compliance, efficiency, containment, constructability, and low-level design
+- **Simulate real design gates** — pass HLD (high-level design) to unlock LLD (low-level design) with splice tables, fiber assignments, splice diagrams, and BOM generation
+- **Build a portfolio** — export completed designs as GeoJSON + BOM CSV packages with checksums
 
 ## Quick start
 
@@ -62,8 +62,8 @@ skarion-vetro/
 │   │   ├── Toolbar.tsx           # Drawing tool palette
 │   │   └── ...                   # BriefModal, InstructorDashboard, PortfolioExport
 │   ├── lib/
-│   │   ├── grading/engine.ts     # 13+ deterministic check registry
-│   │   ├── projects/             # P1–P9 project fixtures
+│   │   ├── grading/engine.ts     # 19-check deterministic registry
+│   │   ├── projects/             # P1–P10 project fixtures
 │   │   ├── basemap/              # GeoJSON reference layer loader
 │   │   ├── auth/                 # JWT tokens, password hashing
 │   │   ├── store.ts              # Zustand design state
@@ -100,19 +100,21 @@ skarion-vetro/
 
 ### Grading engine (`src/lib/grading/engine.ts`)
 
-A deterministic rule engine with 13+ checks in 5 categories:
+A deterministic rule engine with 19 checks in 7 categories:
 
 - **Connectivity** — coverage, connectivity, mainline, conduit connectivity
 - **Compliance** — pole spans (max 300ft), drop cables (max 150ft), fiber counts
 - **Efficiency** — total cable length vs. instructor optimal (per-project)
 - **Containment** — container capacity, equipment hosting, conduit terminus, flowerpot rules
+- **Constructability** — trespass, element-outside-boundary, boundary crossing, route endpoint validity
 - **LLD** — split ratio validity, fiber assignment completeness
+- **Premise coverage** — unassigned premise detection
 
-All checks are pure functions over a `DesignContext` (elements + graph + containment map). No AI is used in grading — every score is deterministic and auditable.
+All checks are pure functions over a `DesignContext` (elements + graph + containment map). Grading runs server-side with mandatory gate separation. No AI is used — every score is deterministic and auditable.
 
-### Projects (P1–P9)
+### Projects (P1–P10)
 
-9 project fixtures in `src/lib/projects/`:
+10 project fixtures in `src/lib/projects/`:
 
 | Project | Environment | Difficulty |
 |---|---|---|
@@ -127,7 +129,7 @@ All checks are pure functions over a `DesignContext` (elements + graph + contain
 | P9: Riverside Crossing | Mixed | Capstone |
 | P10: Parkside Georgetown | Mixed | Real-world |
 
-Each project includes pre-loaded elements, constraints (max spans, fiber counts, drop lengths), grading weights, and an optimal solution for efficiency benchmarking.
+Each project includes pre-loaded elements and constraints. P10 uses real Williamson County data: 554 parcel polygons and 557 address points from WCAD.
 
 ### Design canvas (`MapCanvas.tsx`)
 
@@ -204,14 +206,14 @@ Requires a Cloudflare account and `NEON_DATABASE_URL` + `JWT_SECRET` configured.
 ### High-impact areas
 
 1. **Expand test coverage** — the codebase has 42 test files and 222 passing unit tests. Add integration tests for API routes and end-to-end Playwright journeys for remaining scenarios.
-2. **Auth endpoints** — `/api/auth/refresh` (token refresh) and `/api/auth/logout` routes are implemented. Add refresh token reuse detection tests and disable the in-memory invitation fallback.
-3. **Input validation** — `zod` is already a dependency but unused. Add schema validation to every API route (`src/app/api/*/route.ts`).
+2. **Auth hardening** — `/api/auth/refresh` and `/api/auth/logout` routes are implemented. Add refresh token reuse detection and remove the in-memory invitation fallback.
+3. **Input validation** — zod is used for input validation in 11+ API routes. Add schemas to remaining routes and add contract tests.
 4. **Error boundaries** — add React error boundaries around `MapCanvas` and `SidePanel` so a component crash doesn't take down the page.
-5. **In-memory invite tokens** — `INVITE_TOKENS` in the auth routes is a module-level `Map`. Move to a database-backed table for production.
+5. **Design persistence** — implement the autosave API endpoint, checkpoint storage, and ETag conflict handling (model exists in `src/lib/design-persistence.ts`).
 
 ### Medium-impact areas
 
-- **Worker grading** — the Next.js app handles grading client-side. The Worker's `/api/grading/submit` was removed as redundant. If you need server-side grading, import the check registry into the Worker bundle.
+- **Worker grading** — the Next.js app handles grading server-side via `src/app/api/grading/route.ts`. The Worker's `/api/grading/submit` was removed as redundant.
 - **PDF export** — `PortfolioExport.tsx` currently only does JSON export. Add PDF generation.
 - **Instructor dashboard** — `InstructorDashboard.tsx` shows struggle analytics but attempt history is a stub. Wire it to the `grading_results` and `design_attempts` tables.
 - **Containment tree nesting** — `ContainmentTree.tsx` flattens nested hierarchies. Add recursive rendering for deeply nested containers.
