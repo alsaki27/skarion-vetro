@@ -109,5 +109,5 @@ export function useAutosave(projectId: string) {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [state.savedRevision]);
 
-  return { ...state, markDirty, save, retry: save };
+  return { ...state, markDirty, save, retry: save, setSavedRevision: (rev: string) => setState((s) => ({ ...s, savedRevision: rev })) };
 }

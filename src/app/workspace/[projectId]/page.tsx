@@ -40,7 +40,7 @@ export default function WorkspacePage({
   const [outputsOpen, setOutputsOpen] = useState(false);
   const [gradeOpen, setGradeOpen] = useState(false);
   const { state, set, toggleLeft, toggleRight, toggleBottom } = usePanelState(projectId);
-  const { status: autosaveStatus, lastSavedAt, markDirty } = useAutosave(projectId);
+  const { status: autosaveStatus, lastSavedAt, markDirty, setSavedRevision } = useAutosave(projectId);
 
   const elements = useDesignStore((s) => s.elements);
 
@@ -53,7 +53,10 @@ export default function WorkspacePage({
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
-          const data = await res.json() as { latest?: { data: { elements?: Parameters<typeof loadElements>[0] } } };
+          const data = await res.json() as { latest?: { id?: string; data: { elements?: Parameters<typeof loadElements>[0] } } };
+          if (data.latest?.id) {
+            setSavedRevision(data.latest.id);
+          }
           if (data.latest?.data?.elements) {
             loadElements(data.latest.data.elements);
             return;
@@ -62,7 +65,7 @@ export default function WorkspacePage({
       } catch { /* fall through to fixtures */ }
       loadElements(project.preloadedElements);
     })();
-  }, [project, projectId, loadElements]);
+  }, [project, projectId, loadElements, setSavedRevision]);
 
   // Only mark dirty after hydration completes — never during restore/fixture load
   const initializedRef = useRef(false);

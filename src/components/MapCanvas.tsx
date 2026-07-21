@@ -704,9 +704,15 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
 
     // Project boundary — dashed amber polygon rendered when the fixture
     // defines a service-area boundary (Parkside Georgetown).
+    // Must wait until style is loaded before touching sources/layers.
     const boundarySourceId = "workspace-boundary";
     const boundaryLayerId = "workspace-boundary-line";
-    if (project.boundary) {
+    const addBoundary = () => {
+      if (!map.isStyleLoaded()) {
+        map.once("idle", addBoundary);
+        return;
+      }
+      if (!project.boundary) return;
       const source = map.getSource(boundarySourceId) as maplibregl.GeoJSONSource | undefined;
       if (!source) {
         map.addSource(boundarySourceId, {
@@ -727,7 +733,8 @@ export default function MapCanvas({ project }: { project: ProjectFixture }) {
           },
         });
       }
-    }
+    };
+    addBoundary();
 
     const syncParcelLabels = (hoveredId: string | null, selectedFeature: typeof selectedBasemapFeature) => {
       if (!map.getLayer(parcelLabelId)) return;
