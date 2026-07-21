@@ -37,8 +37,11 @@ export async function POST(request: NextRequest) {
     // Load basemap data for authoritative grading (matching /api/grading behavior)
     let basemapData: unknown;
     try {
-      const [parcelsResult, addressesResult] = await Promise.all([loadParcels(slug), loadAddresses(slug)]);
-      basemapData = { parcels: parcelsResult, addresses: addressesResult };
+      const basemapId = project.basemapId;
+      if (basemapId) {
+        const [parcelsResult, addressesResult] = await Promise.all([loadParcels(basemapId), loadAddresses(basemapId)]);
+        basemapData = { parcels: parcelsResult, addresses: addressesResult };
+      }
     } catch { /* continue without basemap */ }
 
     const db = getDb();
