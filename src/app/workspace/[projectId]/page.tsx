@@ -64,11 +64,12 @@ export default function WorkspacePage({
     })();
   }, [project, projectId, loadElements]);
 
-  // Only track dirty after initialization (prevent autosave during hydration)
+  // Only mark dirty after hydration completes — never during restore/fixture load
   const initializedRef = useRef(false);
   useEffect(() => {
     if (!initializedRef.current && Object.keys(elements).length > 0) {
       initializedRef.current = true;
+      return; // Skip markDirty on initiation
     }
     if (initializedRef.current) markDirty();
   }, [elements, markDirty]);

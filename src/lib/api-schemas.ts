@@ -4,6 +4,7 @@ export const AutosaveSchema = z.object({
   projectId: z.string().min(1).max(64),
   elements: z.record(z.string(), z.unknown()),
   note: z.string().max(500).optional(),
+  baseRevision: z.string().uuid().optional(),
 });
 
 export const SubmissionSchema = z.object({
