@@ -49,78 +49,79 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database required for submission" }, { status: 503 });
     }
 
-    // Create immutable design snapshot
-    const [snapshot] = await db.insert(schema.designSnapshots).values({
-      orgId: auth.org_id,
-      projectId,
-      userId: auth.sub,
-      snapshotData: { elements, submittedAt: new Date().toISOString(), designId },
-      snapshotNote: `submission-${Date.now()}`,
-    }).returning();
+    // Transactional: snapshot, grade, attempt, progress all-or-nothing
+    const submissionResult = await db.transaction(async (tx) => {
+      const [snapshot] = await tx.insert(schema.designSnapshots).values({
+        orgId: auth.org_id,
+        projectId,
+        userId: auth.sub,
+        snapshotData: { elements, submittedAt: new Date().toISOString(), designId },
+        snapshotNote: `submission-${Date.now()}`,
+      }).returning();
 
-    // Run grading server-side with basemap data
-    const result = runGrading(project, elements as never, basemapData as never);
+      const result = runGrading(project, elements as never, basemapData as never);
 
-    // Save grading result
-    const [gradingResult] = await db.insert(schema.gradingResults).values({
-      orgId: auth.org_id,
-      projectId,
-      userId: auth.sub,
-      totalScore: result.totalScore,
-      isPassing: result.isPassing,
-      categoryScores: result.categories.reduce((acc, c) => ({ ...acc, [c.name]: { score: c.score, status: c.status } }), {}),
-      feedback: { checks: result.checks },
-    }).returning();
+      const [gradingResult] = await tx.insert(schema.gradingResults).values({
+        orgId: auth.org_id,
+        projectId,
+        userId: auth.sub,
+        totalScore: result.totalScore,
+        isPassing: result.isPassing,
+        categoryScores: result.categories.reduce((acc, c) => ({ ...acc, [c.name]: { score: c.score, status: c.status } }), {}),
+        feedback: { checks: result.checks },
+      }).returning();
 
-    // Record attempt
-    const [prevAttempt] = await db.select({ max: schema.designAttempts.attemptNumber })
-      .from(schema.designAttempts)
-      .where(and(
-        eq(schema.designAttempts.userId, auth.sub),
-        eq(schema.designAttempts.projectId, projectId),
-      ))
-      .orderBy(desc(schema.designAttempts.attemptNumber))
-      .limit(1);
+      const [prevAttempt] = await tx.select({ max: schema.designAttempts.attemptNumber })
+        .from(schema.designAttempts)
+        .where(and(
+          eq(schema.designAttempts.userId, auth.sub),
+          eq(schema.designAttempts.projectId, projectId),
+        ))
+        .orderBy(desc(schema.designAttempts.attemptNumber))
+        .limit(1);
 
-    const attemptNumber = (prevAttempt?.max ?? 0) + 1;
+      const attemptNumber = (prevAttempt?.max ?? 0) + 1;
 
-    await db.insert(schema.designAttempts).values({
-      orgId: auth.org_id,
-      userId: auth.sub,
-      projectId,
-      snapshotId: snapshot.id,
-      gradingResultId: gradingResult.id,
-      attemptNumber,
-    });
+      await tx.insert(schema.designAttempts).values({
+        orgId: auth.org_id,
+        userId: auth.sub,
+        projectId,
+        snapshotId: snapshot.id,
+        gradingResultId: gradingResult.id,
+        attemptNumber,
+      });
 
-    // Query existing progress to preserve best score
-    const progress = await db.select({ bestScore: schema.candidateProgress.bestScore, completedAt: schema.candidateProgress.completedAt })
-      .from(schema.candidateProgress)
-      .where(and(eq(schema.candidateProgress.userId, auth.sub), eq(schema.candidateProgress.projectId, projectId)))
-      .limit(1);
+      const progress = await tx.select({ bestScore: schema.candidateProgress.bestScore, completedAt: schema.candidateProgress.completedAt })
+        .from(schema.candidateProgress)
+        .where(and(eq(schema.candidateProgress.userId, auth.sub), eq(schema.candidateProgress.projectId, projectId)))
+        .limit(1);
 
-    // Update progress — preserve best score
-    const existingBestScore = progress[0]?.bestScore ?? 0;
-    const newBestScore = Math.max(existingBestScore, result.totalScore);
+      const existingBestScore = progress[0]?.bestScore ?? 0;
+      const newBestScore = Math.max(existingBestScore, result.totalScore);
 
-    await db.insert(schema.candidateProgress).values({
-      userId: auth.sub,
-      projectId,
-      orgId: auth.org_id,
-      status: (result.isPassing || existingBestScore >= (project.passThreshold ?? 85)) ? "passed" : "submitted",
-      attempts: attemptNumber,
-      bestScore: newBestScore,
-      startedAt: new Date(),
-      completedAt: result.isPassing ? new Date() : (existingBestScore >= (project.passThreshold ?? 85) ? progress[0]?.completedAt : undefined),
-    }).onConflictDoUpdate({
-      target: [schema.candidateProgress.userId, schema.candidateProgress.projectId],
-      set: {
-        status: sql`CASE WHEN ${result.isPassing} OR ${schema.candidateProgress.bestScore} >= ${project.passThreshold ?? 85} THEN 'passed' ELSE 'submitted' END`,
+      await tx.insert(schema.candidateProgress).values({
+        userId: auth.sub,
+        projectId,
+        orgId: auth.org_id,
+        status: (result.isPassing || existingBestScore >= (project.passThreshold ?? 85)) ? "passed" : "submitted",
         attempts: attemptNumber,
-        bestScore: sql`GREATEST(${schema.candidateProgress.bestScore}, ${result.totalScore})`,
-        completedAt: sql`CASE WHEN ${result.isPassing} THEN NOW() ELSE ${schema.candidateProgress.completedAt} END`,
-      },
+        bestScore: newBestScore,
+        startedAt: new Date(),
+        completedAt: result.isPassing ? new Date() : (existingBestScore >= (project.passThreshold ?? 85) ? progress[0]?.completedAt : undefined),
+      }).onConflictDoUpdate({
+        target: [schema.candidateProgress.userId, schema.candidateProgress.projectId],
+        set: {
+          status: sql`CASE WHEN ${result.isPassing} OR ${schema.candidateProgress.bestScore} >= ${project.passThreshold ?? 85} THEN 'passed' ELSE 'submitted' END`,
+          attempts: attemptNumber,
+          bestScore: sql`GREATEST(${schema.candidateProgress.bestScore}, ${result.totalScore})`,
+          completedAt: sql`CASE WHEN ${result.isPassing} THEN NOW() ELSE ${schema.candidateProgress.completedAt} END`,
+        },
+      });
+
+      return { snapshot, gradingResult, attemptNumber, result };
     });
+
+    const { snapshot, attemptNumber, result } = submissionResult;
 
     return NextResponse.json({
       submissionId: snapshot.id,
