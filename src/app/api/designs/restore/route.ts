@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
       .where(and(
         eq(schema.designSnapshots.id, snapshotId),
         eq(schema.designSnapshots.orgId, auth.org_id),
+        // Owner check: students can only see their own snapshots; instructors/admins can see any
+        ...(auth.role === "student" ? [eq(schema.designSnapshots.userId, auth.sub)] : []),
       ))
       .limit(1);
 

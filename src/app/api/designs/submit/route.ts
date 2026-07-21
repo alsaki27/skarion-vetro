@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/auth";
 import { getDb, schema } from "@/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { runGrading } from "@/lib/grading/engine";
 import { PROJECTS } from "@/lib/projects";
 import { SubmissionSchema } from "@/lib/api-schemas";
@@ -90,23 +90,32 @@ export async function POST(request: NextRequest) {
       attemptNumber,
     });
 
-    // Update progress
+    // Query existing progress to preserve best score
+    const progress = await db.select({ bestScore: schema.candidateProgress.bestScore, completedAt: schema.candidateProgress.completedAt })
+      .from(schema.candidateProgress)
+      .where(and(eq(schema.candidateProgress.userId, auth.sub), eq(schema.candidateProgress.projectId, projectId)))
+      .limit(1);
+
+    // Update progress — preserve best score
+    const existingBestScore = progress[0]?.bestScore ?? 0;
+    const newBestScore = Math.max(existingBestScore, result.totalScore);
+
     await db.insert(schema.candidateProgress).values({
       userId: auth.sub,
       projectId,
       orgId: auth.org_id,
-      status: result.isPassing ? "passed" : "submitted",
+      status: (result.isPassing || existingBestScore >= (project.passThreshold ?? 85)) ? "passed" : "submitted",
       attempts: attemptNumber,
-      bestScore: result.totalScore,
+      bestScore: newBestScore,
       startedAt: new Date(),
-      completedAt: result.isPassing ? new Date() : undefined,
+      completedAt: result.isPassing ? new Date() : (existingBestScore >= (project.passThreshold ?? 85) ? progress[0]?.completedAt : undefined),
     }).onConflictDoUpdate({
       target: [schema.candidateProgress.userId, schema.candidateProgress.projectId],
       set: {
-        status: result.isPassing ? "passed" : "submitted",
+        status: sql`CASE WHEN ${result.isPassing} OR ${schema.candidateProgress.bestScore} >= ${project.passThreshold ?? 85} THEN 'passed' ELSE 'submitted' END`,
         attempts: attemptNumber,
-        bestScore: result.totalScore,
-        completedAt: result.isPassing ? new Date() : undefined,
+        bestScore: sql`GREATEST(${schema.candidateProgress.bestScore}, ${result.totalScore})`,
+        completedAt: sql`CASE WHEN ${result.isPassing} THEN NOW() ELSE ${schema.candidateProgress.completedAt} END`,
       },
     });
 

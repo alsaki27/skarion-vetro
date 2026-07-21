@@ -78,23 +78,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token reuse detected — session revoked", error_code: "TOKEN_REUSE" }, { status: 401 });
     }
 
-    // Load user's current membership to get actual role and email
-    const [membership] = await db.select({ role: schema.orgMembers.role })
+    // Load user's current membership to get actual role and status
+    const [membership] = await db.select({ role: schema.orgMembers.role, status: schema.orgMembers.status })
       .from(schema.orgMembers)
       .where(and(
         eq(schema.orgMembers.orgId, session.orgId),
         eq(schema.orgMembers.userId, session.userId),
+        eq(schema.orgMembers.status, "active"),
       ))
       .limit(1);
 
-    const [user] = await db.select({ email: schema.users.email })
+    const [user] = await db.select({ email: schema.users.email, isPlatformStaff: schema.users.isPlatformStaff })
       .from(schema.users)
       .where(eq(schema.users.id, session.userId))
       .limit(1);
 
-    // Deny if membership deactivated or not found
+    // Deny if membership not active or not found
     if (!membership) {
-      return NextResponse.json({ error: "Membership deactivated", error_code: "UNAUTHORIZED" }, { status: 401 });
+      return NextResponse.json({ error: "Membership not active", error_code: "UNAUTHORIZED" }, { status: 401 });
     }
 
     // Rotate: issue new tokens and update session
@@ -104,6 +105,7 @@ export async function POST(request: NextRequest) {
       email: user?.email ?? "",
       org_id: session.orgId,
       role: membership.role,
+      is_platform_staff: user?.isPlatformStaff ?? false,
     });
     const newRefreshToken = await createRefreshToken(session.userId, newTokenFamily);
     const newHash = hashToken(newRefreshToken);
